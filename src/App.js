@@ -15,6 +15,11 @@ import jerryLogo from './jerry_logo.png';
 // --- CONFIG ---
 const API_URL = "/api"; 
 
+// --- STORAGE MODE TOGGLE ---
+// Set to true for local testing (uses browser localStorage)
+// Set to false for production (uses backend API)
+const USE_LOCAL_STORAGE = true; // <-- Change this to false when deploying to company servers 
+
 // --- THEME CONSTANTS ---
 const JERRY_PINK = "#E9406A";
 const JERRY_BG = "#FDF2F4"; 
@@ -279,45 +284,89 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
     if (!isOpen) return null;
 
     const handleRename = (oldName) => {
-        const safeNewName = newName.trim();
+        let safeNewName = newName.trim();
         if(!safeNewName) return;
         
-        fetch(`${API_URL}/rename_flow`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ oldFilename: oldName, newFilename: safeNewName })
-        }).then(res => res.json()).then(data => {
-            if(data.message.includes("success")) {
-                refreshList();
-                if(currentFlowName === oldName) {
-                    setCurrentFlowName(data.newFilename);
-                }
-                setRenamingId(null);
-                setNewName("");
-            } else {
-                alert(data.message);
-            }
-        });
+        // Add .json if not present
+        if (!safeNewName.endsWith('.json')) {
+            safeNewName = safeNewName + '.json';
+        }
+        
+        if (USE_LOCAL_STORAGE) {
+          // Use localStorage for testing
+          const oldData = localStorage.getItem(`insurance-wizard-${oldName}`);
+          
+          // Save with new name
+          if (oldData) {
+              localStorage.setItem(`insurance-wizard-${safeNewName}`, oldData);
+              localStorage.removeItem(`insurance-wizard-${oldName}`);
+          }
+          
+          // Update flows list
+          const flows = JSON.parse(localStorage.getItem('insurance-wizard-flows') || '[]');
+          const updatedFlows = flows.map(f => f === oldName ? safeNewName : f);
+          localStorage.setItem('insurance-wizard-flows', JSON.stringify(updatedFlows));
+          
+          refreshList();
+          if(currentFlowName === oldName) {
+              setCurrentFlowName(safeNewName);
+          }
+          setRenamingId(null);
+          setNewName("");
+        } else {
+          // Use API for production
+          fetch(`${API_URL}/rename_flow`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ oldFilename: oldName, newFilename: safeNewName })
+          }).then(res => res.json()).then(data => {
+              if(data.message.includes("success")) {
+                  refreshList();
+                  if(currentFlowName === oldName) {
+                      setCurrentFlowName(data.newFilename);
+                  }
+                  setRenamingId(null);
+                  setNewName("");
+              } else {
+                  alert(data.message);
+              }
+          });
+        }
     };
 
     const handleDelete = (filename) => {
         if(!window.confirm(`Are you sure you want to delete "${filename}"? This cannot be undone.`)) return;
         
-        fetch(`${API_URL}/delete_flow`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ filename })
-        }).then(res => res.json()).then(data => {
-            if(data.message.includes("success")) {
-                refreshList();
-                if(currentFlowName === filename) {
-                    // If we deleted the active flow, reload the page or switch to default
-                    window.location.reload(); 
-                }
-            } else {
-                alert(data.message);
-            }
-        });
+        if (USE_LOCAL_STORAGE) {
+          // Use localStorage for testing
+          localStorage.removeItem(`insurance-wizard-${filename}`);
+          
+          // Update flows list
+          const flows = JSON.parse(localStorage.getItem('insurance-wizard-flows') || '[]');
+          const updatedFlows = flows.filter(f => f !== filename);
+          localStorage.setItem('insurance-wizard-flows', JSON.stringify(updatedFlows));
+          
+          refreshList();
+          if(currentFlowName === filename) {
+              window.location.reload(); 
+          }
+        } else {
+          // Use API for production
+          fetch(`${API_URL}/delete_flow`, {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({ filename })
+          }).then(res => res.json()).then(data => {
+              if(data.message.includes("success")) {
+                  refreshList();
+                  if(currentFlowName === filename) {
+                      window.location.reload(); 
+                  }
+              } else {
+                  alert(data.message);
+              }
+          });
+        }
     };
 
     return (
@@ -484,10 +533,25 @@ export default function App() {
 
   // Load list of flows AND current flow
   const refreshFlows = () => {
-    fetch(`${API_URL}/flows`).then(res => res.json()).then(files => {
-        if(files.length === 0) setAvailableFlows(["default_flow.json"]);
-        else setAvailableFlows(files);
-    }).catch(() => setAvailableFlows(["default_flow.json"]));
+    if (USE_LOCAL_STORAGE) {
+      // Use localStorage for testing
+      const savedFlows = localStorage.getItem('insurance-wizard-flows');
+      if (savedFlows) {
+        setAvailableFlows(JSON.parse(savedFlows));
+      } else {
+        setAvailableFlows(["default_flow.json"]);
+        localStorage.setItem('insurance-wizard-flows', JSON.stringify(["default_flow.json"]));
+      }
+    } else {
+      // Use API for production
+      fetch(`${API_URL}/flows`)
+        .then(res => res.json())
+        .then(files => {
+          if(files.length === 0) setAvailableFlows(["default_flow.json"]);
+          else setAvailableFlows(files);
+        })
+        .catch(() => setAvailableFlows(["default_flow.json"]));
+    }
   };
 
   useEffect(() => {
@@ -496,10 +560,14 @@ export default function App() {
   }, []);
 
   const loadFlowData = (filename) => {
-    fetch(`${API_URL}/load?filename=${filename}`)
-      .then(res => res.json())
-      .then(data => {
-        if (!data.nodes || data.nodes.length === 0) {
+    if (USE_LOCAL_STORAGE) {
+      // Use localStorage for testing
+      const savedData = localStorage.getItem(`insurance-wizard-${filename}`);
+      
+      if (savedData) {
+        try {
+          const data = JSON.parse(savedData);
+          if (!data.nodes || data.nodes.length === 0) {
             setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome to the Insurance Wizard', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
             setEdges([]);
             setCarriers(DEFAULT_CARRIERS);
@@ -507,22 +575,64 @@ export default function App() {
             setQuoteSettings(DEFAULT_QUOTE_SETTINGS);
             setHistory([]);
             return;
-        }
-        const nodesWithHandler = data.nodes.map(n => ({ ...n, data: { ...n.data, onChange: updateNodeData, setAsStartNode: setAsStartNode } }));
-        setNodes(nodesWithHandler);
-        setEdges(data.edges || []);
-        setCarriers(data.carriers || DEFAULT_CARRIERS);
-        setResources(data.resources || DEFAULT_RESOURCES);
-        setQuoteSettings(data.quoteSettings || DEFAULT_QUOTE_SETTINGS);
-        setHistory([]);
-        setActiveChecklistState({});
-        const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
-        if(start) setCurrentNodeId(start.id);
-      }).catch(err => {
+          }
+          const nodesWithHandler = data.nodes.map(n => ({ ...n, data: { ...n.data, onChange: updateNodeData, setAsStartNode: setAsStartNode } }));
+          setNodes(nodesWithHandler);
+          setEdges(data.edges || []);
+          setCarriers(data.carriers || DEFAULT_CARRIERS);
+          setResources(data.resources || DEFAULT_RESOURCES);
+          setQuoteSettings(data.quoteSettings || DEFAULT_QUOTE_SETTINGS);
+          setHistory([]);
+          setActiveChecklistState({});
+          const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
+          if(start) setCurrentNodeId(start.id);
+        } catch (err) {
+          console.error('Error loading from localStorage:', err);
           setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Error loading file. Resetting...', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
           setEdges([]);
           setHistory([]);
-      });
+        }
+      } else {
+        // No saved data, initialize with default
+        setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome to the Insurance Wizard', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
+        setEdges([]);
+        setCarriers(DEFAULT_CARRIERS);
+        setResources(DEFAULT_RESOURCES);
+        setQuoteSettings(DEFAULT_QUOTE_SETTINGS);
+        setHistory([]);
+        const start = { id: '1' };
+        setCurrentNodeId(start.id);
+      }
+    } else {
+      // Use API for production
+      fetch(`${API_URL}/load?filename=${filename}`)
+        .then(res => res.json())
+        .then(data => {
+          if (!data.nodes || data.nodes.length === 0) {
+              setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome to the Insurance Wizard', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
+              setEdges([]);
+              setCarriers(DEFAULT_CARRIERS);
+              setResources(DEFAULT_RESOURCES);
+              setQuoteSettings(DEFAULT_QUOTE_SETTINGS);
+              setHistory([]);
+              return;
+          }
+          const nodesWithHandler = data.nodes.map(n => ({ ...n, data: { ...n.data, onChange: updateNodeData, setAsStartNode: setAsStartNode } }));
+          setNodes(nodesWithHandler);
+          setEdges(data.edges || []);
+          setCarriers(data.carriers || DEFAULT_CARRIERS);
+          setResources(data.resources || DEFAULT_RESOURCES);
+          setQuoteSettings(data.quoteSettings || DEFAULT_QUOTE_SETTINGS);
+          setHistory([]);
+          setActiveChecklistState({});
+          const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
+          if(start) setCurrentNodeId(start.id);
+        }).catch(err => {
+            setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Error loading file. Resetting...', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
+            setEdges([]);
+            setHistory([]);
+        });
+    }
   }
 
   const handleSwitchFlow = (e) => {
@@ -549,14 +659,37 @@ export default function App() {
 
   const saveToServer = () => {
     const cleanNodes = nodes.map(n => { const { onChange, setAsStartNode, ...rest } = n.data; return { ...n, data: rest }; });
-    fetch(`${API_URL}/save`, { 
-      method: 'POST', 
-      headers: {'Content-Type': 'application/json'}, 
-      body: JSON.stringify({ 
-          filename: currentFlowName, 
-          nodes: cleanNodes, edges, carriers, quoteSettings, resources 
-        }) 
-    }).then(res => res.json()).then(d => alert(d.message));
+    const dataToSave = {
+      filename: currentFlowName,
+      nodes: cleanNodes,
+      edges,
+      carriers,
+      quoteSettings,
+      resources
+    };
+    
+    if (USE_LOCAL_STORAGE) {
+      // Save to localStorage for testing
+      localStorage.setItem(`insurance-wizard-${currentFlowName}`, JSON.stringify(dataToSave));
+      
+      // Update the flows list if this is a new flow
+      const savedFlows = localStorage.getItem('insurance-wizard-flows');
+      const flows = savedFlows ? JSON.parse(savedFlows) : [];
+      if (!flows.includes(currentFlowName)) {
+        flows.push(currentFlowName);
+        localStorage.setItem('insurance-wizard-flows', JSON.stringify(flows));
+        setAvailableFlows(flows);
+      }
+      
+      alert('Playbook saved successfully!');
+    } else {
+      // Save to API for production
+      fetch(`${API_URL}/save`, { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify(dataToSave) 
+      }).then(res => res.json()).then(d => alert(d.message));
+    }
   };
 
   const onConnect = useCallback((params) => { const label = window.prompt("Choice label?", "Next"); setEdges((eds) => addEdge({ ...params, label: label || "Next" }, eds)); }, [setEdges]);
