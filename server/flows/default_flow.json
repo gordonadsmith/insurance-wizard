@@ -1,0 +1,84 @@
+{
+  "filename": "default_flow.json",
+  "nodes": [
+    {
+      "id": "1",
+      "type": "scriptNode",
+      "position": {
+        "x": 250,
+        "y": 150
+      },
+      "data": {
+        "label": "Start",
+        "text": "<p>Welcome&nbsp;to&nbsp;the&nbsp;Insurance&nbsp;Wizard&nbsp;testing&nbsp;line&nbsp;breaks&nbsp;</p>",
+        "isStart": true
+      },
+      "width": 274,
+      "height": 126
+    }
+  ],
+  "edges": [],
+  "carriers": {},
+  "quoteSettings": {
+    "coverages": [
+      {
+        "id": "bi_pd",
+        "label": "Bodily Injury Liability",
+        "hasInput": true,
+        "placeholder": "e.g. 100/300",
+        "isPolicyLevel": true,
+        "format": "<b>{label}</b> at {value}"
+      },
+      {
+        "id": "uim",
+        "label": "Uninsured Motorist",
+        "hasInput": true,
+        "placeholder": "e.g. 30/60",
+        "isPolicyLevel": true,
+        "format": "<b>{label}</b> at {value}"
+      },
+      {
+        "id": "pip",
+        "label": "PIP",
+        "hasInput": false,
+        "isPolicyLevel": true,
+        "format": "standard <b>{label}</b>"
+      },
+      {
+        "id": "towing",
+        "label": "Roadside",
+        "hasInput": false,
+        "isPolicyLevel": true,
+        "format": "<b>{label}</b>"
+      },
+      {
+        "id": "comp",
+        "label": "Comprehensive",
+        "hasInput": true,
+        "placeholder": "e.g. $500 Ded",
+        "isPolicyLevel": false,
+        "format": "<b>{label}</b> with a {value}"
+      },
+      {
+        "id": "coll",
+        "label": "Collision",
+        "hasInput": true,
+        "placeholder": "e.g. $500 Ded",
+        "isPolicyLevel": false,
+        "format": "<b>{label}</b> with a {value}"
+      },
+      {
+        "id": "rental",
+        "label": "Rental",
+        "hasInput": true,
+        "placeholder": "e.g. $1200",
+        "isPolicyLevel": false,
+        "format": "{value} for <b>{label}</b>"
+      }
+    ],
+    "coverageFormat": "<b>{label}</b> with {value}",
+    "vehicleTemplate": "for {name}, we have {coverages}",
+    "template": "<p>Excellent news, I found a great rate with <strong>{carrier}</strong>.</p><p>{policy}</p><p>Then {vehicles}.</p><p>I will get this started today for <strong>{down} down</strong> and <strong>{monthly} a month</strong>.</p><p>{closing}</p>"
+  },
+  "resources": []
+}

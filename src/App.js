@@ -28,7 +28,14 @@ const FormatText = ({ text }) => {
   const htmlContent = text.replace(/\r?\n/g, '<br />');
   return (
     <div 
-      style={{ lineHeight: '1.6', wordBreak: 'break-word', cursor: 'text' }}
+      className="formatted-text-content"
+      style={{ 
+        lineHeight: '1.6', 
+        wordWrap: 'break-word',
+        whiteSpace: 'normal',
+        cursor: 'text',
+        width: '100%' 
+      }}
       dangerouslySetInnerHTML={{ __html: htmlContent }} 
     />
   );
@@ -118,8 +125,8 @@ const QuoteBuilderForm = ({ closingQuestion, settings = DEFAULT_QUOTE_SETTINGS, 
 
   return (
     <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
-      <div style={{display:'flex', gap:'8px'}}>
-        <div style={{flexGrow:1}}><label style={{fontSize:'11px', fontWeight:'bold', color: SLATE}}>CARRIER</label><select style={{width:'100%', padding:'8px', borderRadius:'6px', border:`1px solid ${BORDER}`, background:'white'}} value={selectedCarrier} onChange={e => setSelectedCarrier(e.target.value)}><option value="">-- Select --</option>{Object.values(carriers).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+      <div style={{display:'flex', gap:'8px', flexWrap:'wrap'}}>
+        <div style={{flexGrow:1, minWidth:'150px'}}><label style={{fontSize:'11px', fontWeight:'bold', color: SLATE}}>CARRIER</label><select style={{width:'100%', padding:'8px', borderRadius:'6px', border:`1px solid ${BORDER}`, background:'white'}} value={selectedCarrier} onChange={e => setSelectedCarrier(e.target.value)}><option value="">-- Select --</option>{Object.values(carriers).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
         <div style={{width:'90px'}}><label style={{fontSize:'11px', fontWeight:'bold', color: SLATE}}>DOWN</label><input style={{width:'100%', padding:'8px', borderRadius:'6px', border:`1px solid ${BORDER}`}} placeholder="$0.00" value={downPayment} onChange={e => setDownPayment(e.target.value)}/></div>
         <div style={{width:'90px'}}><label style={{fontSize:'11px', fontWeight:'bold', color: SLATE}}>MONTHLY</label><input style={{width:'100%', padding:'8px', borderRadius:'6px', border:`1px solid ${BORDER}`}} placeholder="$0.00" value={monthly} onChange={e => setMonthly(e.target.value)}/></div>
       </div>
@@ -146,7 +153,7 @@ const QuoteBuilderForm = ({ closingQuestion, settings = DEFAULT_QUOTE_SETTINGS, 
       </div>
       <div style={{marginTop:'4px'}}>
         <label style={{fontSize:'11px', fontWeight:'bold', color: JERRY_PINK}}>WORD TRACK:</label>
-        <div style={{background:'white', border:`2px solid ${JERRY_PINK}`, borderRadius:'8px', padding:'12px', fontSize:'15px', lineHeight:'1.6'}} dangerouslySetInnerHTML={{__html: generateScript()}}></div>
+        <div style={{background:'white', border:`2px solid ${JERRY_PINK}`, borderRadius:'8px', padding:'12px', fontSize:'15px', lineHeight:'1.6', wordWrap: 'break-word', whiteSpace: 'normal'}} dangerouslySetInnerHTML={{__html: generateScript()}}></div>
       </div>
     </div>
   );
@@ -208,6 +215,52 @@ const ResourceManager = ({ isOpen, onClose, resources, setResources }) => {
         <div style={{padding:'20px', borderTop:`1px solid ${BORDER}`, display:'flex', justifyContent:'flex-end'}}><button className="btn-primary" onClick={handleSave} style={{background: JERRY_PINK, border:'none'}}>Save Changes</button></div>
       </div>
     </div>
+  );
+};
+
+const ResourceSidebar = ({ resources, setResources }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [managerOpen, setManagerOpen] = useState(false);
+  const [activeResource, setActiveResource] = useState(null);
+
+  return (
+    <>
+      <div onMouseEnter={() => setExpanded(true)} onMouseLeave={() => setExpanded(false)}
+        style={{ width: expanded ? '240px' : '50px', height: '100%', backgroundColor: 'white', borderRight: `1px solid ${BORDER}`, transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', zIndex: 100, flexShrink: 0, boxShadow: '2px 0 5px rgba(0,0,0,0.05)' }}>
+        <div style={{height: '60px', display: 'flex', alignItems: 'center', justifyContent: expanded ? 'flex-start' : 'center', padding: expanded ? '0 20px' : '0', color: JERRY_PINK, borderBottom: `1px solid ${BORDER}`}}>
+          <BookOpen size={24}/>{expanded && <span style={{marginLeft: '12px', fontWeight: 'bold', whiteSpace: 'nowrap'}}>Quick Links</span>}
+        </div>
+        <div style={{flexGrow: 1, padding: '10px 0', overflowY: 'auto'}}>
+          {resources.map(r => (
+            <div key={r.id} onClick={() => r.type === 'link' ? window.open(r.content, '_blank') : setActiveResource(r)}
+              style={{display: 'flex', alignItems: 'center', padding: '12px 0', paddingLeft: expanded ? '20px' : '0', justifyContent: expanded ? 'flex-start' : 'center', color: SLATE, cursor: 'pointer'}}
+              onMouseOver={(e) => {e.currentTarget.style.color = JERRY_PINK; e.currentTarget.style.background = JERRY_BG}}
+              onMouseOut={(e) => {e.currentTarget.style.color = SLATE; e.currentTarget.style.background = 'transparent'}}
+            >
+              {r.type === 'link' ? <LinkIcon size={20}/> : <FileText size={20}/>}
+              {expanded && <span style={{marginLeft: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize:'14px'}}>{r.title}</span>}
+            </div>
+          ))}
+        </div>
+        <div style={{padding: '10px', borderTop: `1px solid ${BORDER}`}}>
+          <button onClick={() => setManagerOpen(true)} style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: expanded ? 'flex-start' : 'center', background: 'transparent', border: 'none', borderRadius: '6px', color: SLATE, padding: '8px', cursor: 'pointer'}} onMouseOver={e=>e.currentTarget.style.color=JERRY_PINK} onMouseOut={e=>e.currentTarget.style.color=SLATE}>
+            <Edit size={16}/>{expanded && <span style={{marginLeft: '10px'}}>Edit Resources</span>}
+          </button>
+        </div>
+      </div>
+      <ResourceManager isOpen={managerOpen} onClose={() => setManagerOpen(false)} resources={resources} setResources={setResources} />
+      {activeResource && (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+          <div style={{position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)'}} onClick={() => setActiveResource(null)}></div>
+          <div style={{width: '500px', maxHeight: '70vh', background: 'white', borderRadius: '12px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', padding: '20px', pointerEvents: 'auto', display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: `1px solid ${BORDER}`, paddingBottom: '10px'}}>
+              <h3 style={{margin: 0, fontSize: '18px', color: JERRY_PINK}}>{activeResource.title}</h3><button onClick={() => setActiveResource(null)} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20}/></button>
+            </div>
+            <div style={{flexGrow: 1, overflowY: 'auto', fontSize: '14px', lineHeight: '1.6'}} dangerouslySetInnerHTML={{__html: activeResource.content}}></div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -291,52 +344,6 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
             </div>
         </div>
     );
-};
-
-const ResourceSidebar = ({ resources, setResources }) => {
-  const [expanded, setExpanded] = useState(false);
-  const [managerOpen, setManagerOpen] = useState(false);
-  const [activeResource, setActiveResource] = useState(null);
-
-  return (
-    <>
-      <div onMouseEnter={() => setExpanded(true)} onMouseLeave={() => setExpanded(false)}
-        style={{ width: expanded ? '240px' : '50px', height: '100%', backgroundColor: 'white', borderRight: `1px solid ${BORDER}`, transition: 'width 0.3s ease', display: 'flex', flexDirection: 'column', zIndex: 100, flexShrink: 0, boxShadow: '2px 0 5px rgba(0,0,0,0.05)' }}>
-        <div style={{height: '60px', display: 'flex', alignItems: 'center', justifyContent: expanded ? 'flex-start' : 'center', padding: expanded ? '0 20px' : '0', color: JERRY_PINK, borderBottom: `1px solid ${BORDER}`}}>
-          <BookOpen size={24}/>{expanded && <span style={{marginLeft: '12px', fontWeight: 'bold', whiteSpace: 'nowrap'}}>Quick Links</span>}
-        </div>
-        <div style={{flexGrow: 1, padding: '10px 0', overflowY: 'auto'}}>
-          {resources.map(r => (
-            <div key={r.id} onClick={() => r.type === 'link' ? window.open(r.content, '_blank') : setActiveResource(r)}
-              style={{display: 'flex', alignItems: 'center', padding: '12px 0', paddingLeft: expanded ? '20px' : '0', justifyContent: expanded ? 'flex-start' : 'center', color: SLATE, cursor: 'pointer'}}
-              onMouseOver={(e) => {e.currentTarget.style.color = JERRY_PINK; e.currentTarget.style.background = JERRY_BG}}
-              onMouseOut={(e) => {e.currentTarget.style.color = SLATE; e.currentTarget.style.background = 'transparent'}}
-            >
-              {r.type === 'link' ? <LinkIcon size={20}/> : <FileText size={20}/>}
-              {expanded && <span style={{marginLeft: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize:'14px'}}>{r.title}</span>}
-            </div>
-          ))}
-        </div>
-        <div style={{padding: '10px', borderTop: `1px solid ${BORDER}`}}>
-          <button onClick={() => setManagerOpen(true)} style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: expanded ? 'flex-start' : 'center', background: 'transparent', border: 'none', borderRadius: '6px', color: SLATE, padding: '8px', cursor: 'pointer'}} onMouseOver={e=>e.currentTarget.style.color=JERRY_PINK} onMouseOut={e=>e.currentTarget.style.color=SLATE}>
-            <Edit size={16}/>{expanded && <span style={{marginLeft: '10px'}}>Edit Resources</span>}
-          </button>
-        </div>
-      </div>
-      <ResourceManager isOpen={managerOpen} onClose={() => setManagerOpen(false)} resources={resources} setResources={setResources} />
-      {activeResource && (
-        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-          <div style={{position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)'}} onClick={() => setActiveResource(null)}></div>
-          <div style={{width: '500px', maxHeight: '70vh', background: 'white', borderRadius: '12px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', padding: '20px', pointerEvents: 'auto', display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: `1px solid ${BORDER}`, paddingBottom: '10px'}}>
-              <h3 style={{margin: 0, fontSize: '18px', color: JERRY_PINK}}>{activeResource.title}</h3><button onClick={() => setActiveResource(null)} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20}/></button>
-            </div>
-            <div style={{flexGrow: 1, overflowY: 'auto', fontSize: '14px', lineHeight: '1.6'}} dangerouslySetInnerHTML={{__html: activeResource.content}}></div>
-          </div>
-        </div>
-      )}
-    </>
-  );
 };
 
 // --- COMPONENT: Carrier Manager ---
@@ -454,9 +461,26 @@ export default function App() {
   const [history, setHistory] = useState([]);
   const [selectedCarrierId, setSelectedCarrierId] = useState(null);
   
-  // Checklist State Tracking - CHANGED to store Key:Value pairs instead of Array
-  // Structure: { nodeId: { "Question 1": "checked", "Question 2": "yes", "Question 3": "no" } }
+  // Checklist State Tracking
   const [activeChecklistState, setActiveChecklistState] = useState({});
+
+  // Global CSS injection for word wrapping
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .bubble-text p, .formatted-text-content p { 
+        margin: 0 0 8px 0; 
+        word-wrap: break-word; 
+      }
+      .bubble-text, .formatted-text-content {
+        min-width: 0;
+        width: 100%;
+        word-wrap: break-word;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
 
   const updateNodeData = useCallback((id, newData) => {
     setNodes((nds) => nds.map((node) => node.id === id ? { ...node, data: { ...newData, onChange: updateNodeData, setAsStartNode: setAsStartNode } } : node));
@@ -502,7 +526,7 @@ export default function App() {
         setResources(data.resources || DEFAULT_RESOURCES);
         setQuoteSettings(data.quoteSettings || DEFAULT_QUOTE_SETTINGS);
         setHistory([]);
-        setActiveChecklistState({}); // Reset checklists
+        setActiveChecklistState({});
         const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
         if(start) setCurrentNodeId(start.id);
       }).catch(err => {
@@ -560,12 +584,10 @@ export default function App() {
     const current = getCurrentNode();
     let historyData = { ...current, selectedOption: label };
     
-    // Capture specific data based on node type
     if (current.type === 'carrierNode' && selectedCarrierId) {
         historyData.carrierInfo = carriers[selectedCarrierId];
     }
     if (current.type === 'checklistNode') {
-        // Save the map of { question: answer }
         historyData.checklistAnswers = activeChecklistState[current.id] || {};
     }
 
@@ -582,17 +604,14 @@ export default function App() {
       setActiveChecklistState({});
   };
 
-  // NEW Helper: Update answer state (Supports "checked", "Yes", "No")
   const updateChecklistAnswer = (nodeId, itemText, value) => {
       setActiveChecklistState(prev => {
           const nodeState = prev[nodeId] || {};
-          // If value is null, remove the key (uncheck)
           if (value === null) {
               const newState = { ...nodeState };
               delete newState[itemText];
               return { ...prev, [nodeId]: newState };
           }
-          // Otherwise set the value ("checked", "Yes", "No")
           return { ...prev, [nodeId]: { ...nodeState, [itemText]: value } };
       });
   };
@@ -613,11 +632,9 @@ export default function App() {
               const val = answers[cleanItem];
 
               if (isYesNo) {
-                  // CHANGED: Answer on LEFT side in brackets [YES]
                   const displayVal = val ? val.toUpperCase() : ' ';
                   report += `[${displayVal}] ${cleanItem}\n`;
               } else {
-                  // Checkbox also on LEFT side [X]
                   report += `[${val ? 'X' : ' '}] ${cleanItem}\n`;
               }
           });
@@ -635,7 +652,6 @@ export default function App() {
       }
   };
 
-  // Helper to render checklist items in history/active view
   const renderChecklistItems = (itemsText, answers, nodeId, isInteractive) => {
       return (itemsText || "").split('\n').map((rawItem, i) => {
           if (!rawItem.trim()) return null;
@@ -646,7 +662,7 @@ export default function App() {
           if (isYesNo) {
              return (
                  <div key={i} style={{margin:'8px 0', padding:'8px', background:'white', border:`1px solid ${BORDER}`, borderRadius:'6px'}}>
-                     <div style={{fontSize:'14px', color:SLATE, marginBottom:'6px', fontWeight:'500'}}>{cleanItem}</div>
+                     <div style={{fontSize:'14px', color:SLATE, marginBottom:'6px', fontWeight:'500', wordWrap: 'break-word'}}>{cleanItem}</div>
                      <div style={{display:'flex', gap:'12px'}}>
                          <label style={{display:'flex', alignItems:'center', gap:'4px', cursor: isInteractive ? 'pointer' : 'default'}}>
                              <input type="radio" 
@@ -676,9 +692,9 @@ export default function App() {
                         disabled={!isInteractive}
                         checked={!!currentVal}
                         onChange={() => isInteractive && updateChecklistAnswer(nodeId, cleanItem, currentVal ? null : 'checked')}
-                        style={{width:'16px', height:'16px', accentColor: COMPLIANCE_ORANGE}}
+                        style={{width:'16px', height:'16px', accentColor: COMPLIANCE_ORANGE, flexShrink: 0}}
                       />
-                      <span style={{fontSize:'14px', color:SLATE}}>{cleanItem}</span>
+                      <span style={{fontSize:'14px', color:SLATE, wordWrap: 'break-word'}}>{cleanItem}</span>
                   </label>
               );
           }
@@ -702,8 +718,9 @@ export default function App() {
       <ResourceSidebar resources={resources} setResources={setResources} />
 
       <div className="wizard-pane" style={{
-          flex: showAdmin ? '0 0 30%' : '1', 
-          maxWidth: showAdmin ? '30%' : '100%',
+          flex: showAdmin ? '0 0 400px' : '1', 
+          maxWidth: '100%', 
+          minWidth: '350px',
           borderRight: showAdmin ? `1px solid ${BORDER}` : 'none', 
           display:'flex', flexDirection:'column', background: 'white'
         }}>
@@ -725,12 +742,12 @@ export default function App() {
           <button className="btn btn-secondary" onClick={resetWizard} style={{color: SLATE}}><RefreshCw size={16} /></button>
         </div>
         
-        <div className="wizard-content" style={{background: 'white'}}>
+        <div className="wizard-content" style={{background: 'white', overflowX: 'hidden'}}>
           {history.map((step, idx) => (
             <div key={idx} style={{opacity:0.6, marginBottom:'20px'}}>
               <div className="bubble" style={{background: '#F3F4F6'}}>
                 <div className="bubble-label" style={{color: SLATE}}>{step.data.label}</div>
-                {step.type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE}} dangerouslySetInnerHTML={{__html: step.data.text}}></div>}
+                {step.type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE, width: '100%', minWidth: 0, wordWrap: 'break-word'}} dangerouslySetInnerHTML={{__html: step.data.text}}></div>}
                 {step.type === 'carrierNode' && step.carrierInfo && <div><div style={{fontWeight:'bold', color:JERRY_PINK}}>{step.carrierInfo.name} Selected</div><div style={{fontSize:'12px'}} dangerouslySetInnerHTML={{__html: step.carrierInfo.script}}></div></div>}
                 {step.type === 'checklistNode' && (
                     <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
@@ -746,7 +763,7 @@ export default function App() {
             <div className="bubble" style={{ borderLeft: `4px solid ${getCurrentNode().type === 'carrierNode' ? '#8b5cf6' : getCurrentNode().type === 'quoteNode' ? JERRY_PINK : getCurrentNode().type === 'checklistNode' ? COMPLIANCE_ORANGE : '#E5090E'}`, background: JERRY_BG }}>
               <div className="bubble-label" style={{color: JERRY_PINK}}>{getCurrentNode().data.label}</div>
               
-              {getCurrentNode().type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE}} dangerouslySetInnerHTML={{__html: getCurrentNode().data.text}}></div>}
+              {getCurrentNode().type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE, width: '100%', minWidth: 0, wordWrap: 'break-word'}} dangerouslySetInnerHTML={{__html: getCurrentNode().data.text}}></div>}
               
               {getCurrentNode().type === 'carrierNode' && (
                 <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
@@ -767,13 +784,12 @@ export default function App() {
           )}
         </div>
         
-        <div className="wizard-actions">
+        <div className="wizard-actions" style={{ flexWrap: 'wrap' }}>
           {getCurrentNode() && getOptions().map((opt, idx) => (
             <button key={idx} className="btn-option" disabled={getCurrentNode().type === 'carrierNode' && !selectedCarrierId} style={{opacity: (getCurrentNode().type === 'carrierNode' && !selectedCarrierId) ? 0.5 : 1, borderColor: BORDER, color: SLATE}} onClick={() => handleOptionClick(opt.targetId, opt.label)}><span>{opt.label}</span><ChevronRight size={16} color={JERRY_PINK} /></button>
           ))}
           {getCurrentNode() && getOptions().length === 0 && (
              <div style={{display:'flex', flexDirection:'column', gap:'10px', width:'100%'}}>
-                 {/* Only show "Copy Compliance Log" if checklists exist in history */}
                  {history.some(h => h.type === 'checklistNode') && (
                       <button onClick={copyCompliance} className="btn-secondary" style={{borderColor: COMPLIANCE_ORANGE, color: '#9a3412', background:'#fff7ed', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
                          <ClipboardCheck size={16}/> Copy Compliance Log
