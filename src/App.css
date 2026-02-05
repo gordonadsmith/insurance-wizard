@@ -17,28 +17,46 @@ body {
   --border: #E5E7EB;
 }
 
-/* --- CRITICAL FIX: PROPER WORD WRAPPING --- */
+/* --- CORRECTED FIX: PROPER WORD WRAPPING FOR ENGLISH TEXT --- */
+/* The key is word-break: normal (NOT keep-all) */
 .bubble-text, 
 .bubble-text *,
+.bubble-text p,
+.bubble-text div,
+.bubble-text span,
 .formatted-text-content,
 .formatted-text-content *,
+.formatted-text-content p,
+.formatted-text-content div,
+.formatted-text-content span,
 .ql-editor,
-.ql-editor * {
-  /* CHANGED: Use normal white-space, NOT pre-wrap */
+.ql-editor *,
+.ql-editor p,
+.ql-editor div,
+.ql-container,
+.ql-container *,
+div[dangerouslySetInnerHTML],
+div[dangerouslySetInnerHTML] * {
+  /* Force normal white-space */
   white-space: normal !important;
-  /* Proper word wrapping */
+  
+  /* Allow long words to break at natural points */
   overflow-wrap: break-word !important;
   word-wrap: break-word !important;
-  /* Don't break words in the middle unless absolutely necessary */
+  
+  /* CRITICAL FIX: Use 'normal' for English, NOT 'keep-all' */
   word-break: normal !important;
-  /* Improve readability */
-  line-height: 1.6;
+  
+  /* Line height for readability */
+  line-height: 1.6 !important;
 }
 
 /* Ensure paragraphs have proper spacing */
 .bubble-text p,
-.formatted-text-content p {
-  margin: 0 0 8px 0;
+.formatted-text-content p,
+.ql-editor p {
+  margin: 0 0 8px 0 !important;
+  display: block !important;
 }
 
 .app-container {
@@ -73,9 +91,6 @@ body {
   box-shadow: 0 2px 4px rgba(0,0,0,0.02);
   margin-bottom: 20px;
   position: relative;
-  /* Ensure bubble itself wraps properly */
-  overflow-wrap: break-word;
-  word-wrap: break-word;
 }
 
 .bubble-label {

@@ -10,11 +10,11 @@
       },
       "data": {
         "label": "Start",
-        "text": "<p>Welcome&nbsp;to&nbsp;the&nbsp;Insurance&nbsp;Wizard&nbsp;testing&nbsp;line&nbsp;breaks&nbsp;</p>",
+        "text": "<p>Testing&nbsp;to&nbsp;see&nbsp;if&nbsp;the&nbsp;anticivil&nbsp;liberties&nbsp;of&nbsp;the\u00a0</p>",
         "isStart": true
       },
       "width": 274,
-      "height": 126
+      "height": 139
     }
   ],
   "edges": [],

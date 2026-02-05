@@ -41,6 +41,13 @@ const FormatText = ({ text }) => {
   );
 };
 
+// --- HELPER: CLEAN HTML TO REMOVE NON-BREAKING SPACES ---
+const cleanHTML = (html) => {
+  if (!html) return '';
+  // Replace &nbsp; with regular spaces
+  return html.replace(/&nbsp;/g, ' ');
+};
+
 // --- DEFAULTS ---
 const DEFAULT_CARRIERS = {
   "1": { id: "1", name: "Progressive", script: "<p>Verify garaging address matches license.</p><p><strong>Phone:</strong> 1-800-776-4737</p>" },
@@ -729,7 +736,7 @@ export default function App() {
             <div key={idx} style={{opacity:0.6, marginBottom:'20px'}}>
               <div className="bubble" style={{background: '#F3F4F6'}}>
                 <div className="bubble-label" style={{color: SLATE}}>{step.data.label}</div>
-                {step.type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE, width: '100%', minWidth: 0, wordWrap: 'break-word'}} dangerouslySetInnerHTML={{__html: step.data.text}}></div>}
+                {step.type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE, width: '100%', minWidth: 0, wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'normal', whiteSpace: 'normal'}} dangerouslySetInnerHTML={{__html: cleanHTML(step.data.text)}}></div>}
                 {step.type === 'carrierNode' && step.carrierInfo && <div><div style={{fontWeight:'bold', color:JERRY_PINK}}>{step.carrierInfo.name} Selected</div><div style={{fontSize:'12px'}} dangerouslySetInnerHTML={{__html: step.carrierInfo.script}}></div></div>}
                 {step.type === 'checklistNode' && (
                     <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
@@ -745,7 +752,7 @@ export default function App() {
             <div className="bubble" style={{ borderLeft: `4px solid ${getCurrentNode().type === 'carrierNode' ? '#8b5cf6' : getCurrentNode().type === 'quoteNode' ? JERRY_PINK : getCurrentNode().type === 'checklistNode' ? COMPLIANCE_ORANGE : '#E5090E'}`, background: JERRY_BG }}>
               <div className="bubble-label" style={{color: JERRY_PINK}}>{getCurrentNode().data.label}</div>
               
-              {getCurrentNode().type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE, width: '100%', minWidth: 0, wordWrap: 'break-word'}} dangerouslySetInnerHTML={{__html: getCurrentNode().data.text}}></div>}
+              {getCurrentNode().type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE, width: '100%', minWidth: 0, wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'normal', whiteSpace: 'normal'}} dangerouslySetInnerHTML={{__html: cleanHTML(getCurrentNode().data.text)}}></div>}
               
               {getCurrentNode().type === 'carrierNode' && (
                 <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
