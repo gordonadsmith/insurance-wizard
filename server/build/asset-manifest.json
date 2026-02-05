@@ -1,0 +1,14 @@
+{
+  "files": {
+    "main.css": "/static/css/main.4a5e3e51.css",
+    "main.js": "/static/js/main.639ab7d2.js",
+    "static/media/jerry_logo.png": "/static/media/jerry_logo.06577793bdf8488d0842.png",
+    "index.html": "/index.html",
+    "main.4a5e3e51.css.map": "/static/css/main.4a5e3e51.css.map",
+    "main.639ab7d2.js.map": "/static/js/main.639ab7d2.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.4a5e3e51.css",
+    "static/js/main.639ab7d2.js"
+  ]
+}
