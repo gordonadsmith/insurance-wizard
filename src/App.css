@@ -1,4 +1,3 @@
-/* src/App.css */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
 body {
@@ -16,6 +15,13 @@ body {
   --jerry-bg: #FDF2F4;
   --slate: #475569;
   --border: #E5E7EB;
+}
+
+/* --- CRITICAL FIX: FORCE LINE BREAKS --- */
+.bubble-text, .formatted-text {
+  white-space: pre-wrap !important; /* Forces the browser to respect new lines */
+  word-wrap: break-word;            /* Prevents long words from breaking layout */
+  line-height: 1.6;                 /* Improves readability */
 }
 
 .app-container {

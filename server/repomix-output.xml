@@ -1,0 +1,137 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+app.py
+flow_data.json
+logic_data.json
+requirements.txt
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="app.py">
+import os
+import json
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
+
+# Initialize Flask. 
+# static_folder='build' tells Flask to look for the React build files in the 'build' folder.
+app = Flask(__name__, static_folder='build', static_url_path='')
+
+# Enable CORS (Cross-Origin Resource Sharing)
+CORS(app)
+
+# The file where your diagram data is saved
+DATA_FILE = 'flow_data.json'
+
+# --- API ROUTES (For saving/loading the flow) ---
+
+@app.route('/api/save', methods=['POST'])
+def save_flow():
+    try:
+        data = request.json
+        # write to a local file
+        with open(DATA_FILE, 'w') as f:
+            json.dump(data, f)
+        return jsonify({"message": "Flow saved successfully!"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/load', methods=['GET'])
+def load_flow():
+    if not os.path.exists(DATA_FILE):
+        # Return empty structure if file doesn't exist yet
+        return jsonify({"nodes": [], "edges": [], "carriers": {}, "quoteSettings": {}}), 200
+    try:
+        with open(DATA_FILE, 'r') as f:
+            data = json.load(f)
+        return jsonify(data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# --- FRONTEND ROUTES (For serving the React App) ---
+
+@app.route('/')
+def serve():
+    # Serve the index.html from the build folder
+    if os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return send_from_directory(app.static_folder, 'index.html')
+    else:
+        return "Frontend build not found. Please run 'npm run build' and move the 'build' folder here.", 404
+
+@app.route('/<path:path>')
+def static_proxy(path):
+    # This serves static files (like .js, .css, images)
+    file_path = os.path.join(app.static_folder, path)
+    if os.path.exists(file_path):
+        return send_from_directory(app.static_folder, path)
+    
+    # If the file doesn't exist (and it's not an API call), 
+    # return index.html to let React Router handle the URL.
+    return send_from_directory(app.static_folder, 'index.html')
+
+# --- MAIN ENTRY POINT ---
+
+if __name__ == '__main__':
+    # '0.0.0.0' allows external access (required for Render/Docker)
+    # Get port from environment variable or default to 5001
+    port = int(os.environ.get('PORT', 5001))
+    app.run(host='0.0.0.0', port=port)
+</file>
+
+<file path="flow_data.json">
+{"nodes": [{"data": {"isStart": true, "label": "Start", "text": "testing multiple lines\n\ntest\n"}, "height": 143, "id": "1", "position": {"x": 250, "y": 150}, "type": "scriptNode", "width": 274}], "edges": [], "carriers": {}, "quoteSettings": {"coverageFormat": "{label} with {value}", "coverages": [{"format": "{label} at {value}", "hasInput": true, "id": "bi_pd", "isPolicyLevel": true, "label": "Bodily Injury Liability", "placeholder": "e.g. 100/300"}, {"format": "{label} at {value}", "hasInput": true, "id": "uim", "isPolicyLevel": true, "label": "Uninsured Motorist", "placeholder": "e.g. 30/60"}, {"format": "standard {label}", "hasInput": false, "id": "pip", "isPolicyLevel": true, "label": "PIP"}, {"format": "{label}", "hasInput": false, "id": "towing", "isPolicyLevel": true, "label": "Roadside"}, {"format": "{label} with a {value}", "hasInput": true, "id": "comp", "isPolicyLevel": false, "label": "Comprehensive", "placeholder": "e.g. $500 Ded"}, {"format": "{label} with a {value}", "hasInput": true, "id": "coll", "isPolicyLevel": false, "label": "Collision", "placeholder": "e.g. $500 Ded"}, {"format": "{value} for {label}", "hasInput": true, "id": "rental", "isPolicyLevel": false, "label": "Rental", "placeholder": "e.g. $1200"}], "template": "Excellent news, I found a great rate with {carrier}. {policy}. Then {vehicles}. I will get this started today for {down} down and {monthly} a month. {closing}", "vehicleTemplate": "for {name}, we have {coverages}"}, "resources": [{"content": "Hi, this is [Name] from Jerry. I was working on your quote and found a potential discount...", "id": "1", "title": "Callback Script", "type": "text"}, {"content": "https://google.com", "id": "2", "title": "Carrier Matrix", "type": "link"}]}
+</file>
+
+<file path="logic_data.json">
+{"nodes": [{"data": {"closingQuestion": "How does that price sound?", "isStart": false, "label": "Present Quote"}, "dragging": false, "height": 113, "id": "1202", "position": {"x": 372.49999999999994, "y": 367}, "positionAbsolute": {"x": 372.49999999999994, "y": 367}, "selected": false, "type": "quoteNode", "width": 272}, {"data": {"isStart": false, "label": "Select Carrier"}, "dragging": false, "height": 91, "id": "2053", "position": {"x": 189.08717372536125, "y": 218.79566261606243}, "positionAbsolute": {"x": 189.08717372536125, "y": 218.79566261606243}, "selected": false, "type": "carrierNode", "width": 272}, {"data": {"isStart": true, "label": "Call start", "text": "test"}, "dragging": false, "height": 143, "id": "1825", "position": {"x": 187.65393075419342, "y": 21.72475408046693}, "positionAbsolute": {"x": 187.65393075419342, "y": 21.72475408046693}, "selected": true, "type": "scriptNode", "width": 274}], "edges": [{"id": "reactflow__edge-1-3360", "label": "Next", "source": "1", "sourceHandle": null, "target": "3360", "targetHandle": null}, {"id": "reactflow__edge-3360-9333", "label": "New Quote", "source": "3360", "sourceHandle": null, "target": "9333", "targetHandle": null}, {"id": "reactflow__edge-3360-1202", "label": "Sell It!", "source": "3360", "sourceHandle": null, "target": "1202", "targetHandle": null}, {"id": "reactflow__edge-3360-3360", "label": "new quote", "selected": false, "source": "3360", "sourceHandle": null, "target": "3360", "targetHandle": null}, {"id": "reactflow__edge-2053-2053", "label": "New quote", "source": "2053", "sourceHandle": null, "target": "2053", "targetHandle": null}, {"id": "reactflow__edge-2053-1202", "label": "sell it", "source": "2053", "sourceHandle": null, "target": "1202", "targetHandle": null}, {"id": "reactflow__edge-1825-2053", "label": "Next", "source": "1825", "sourceHandle": null, "target": "2053", "targetHandle": null}], "carriers": {"1": {"id": "1", "name": "Progressive", "phone": "1-800-776-4737", "portal": "foragentsonly.com", "script": "Here you can put specific carrier information to allow a guided quoting experience that highlights common mistakes or pain points."}, "2": {"id": "2", "name": "Geico", "phone": "1-800-841-3000", "portal": "geico.com/agents", "script": "Test"}, "1770238023696": {"id": "1770238023696", "name": "National General", "phone": "78773773737", "portal": "test.com", "script": "Test"}}, "quoteSettings": {"coverageFormat": "{label} with {value}", "coverages": [{"format": "{label} at {value}", "hasInput": true, "id": "bi_pd", "isPolicyLevel": true, "label": "Bodily Injury Liability", "placeholder": "e.g. 100/300"}, {"format": "{label} with a {value}", "hasInput": true, "id": "comp", "isPolicyLevel": false, "label": "Comprehensive", "placeholder": "e.g. $500 Ded"}, {"format": "{label} with a {value}", "hasInput": true, "id": "coll", "label": "Collision", "placeholder": "e.g. $500 Ded"}, {"format": "{value} for {label}", "hasInput": true, "id": "rental", "label": "Rental"}, {"format": "{label} with a {value}", "hasInput": false, "id": "towing", "label": "Roadside"}, {"format": "{label} with a {value}", "hasInput": false, "id": "gap", "label": "Gap Coverage"}, {"format": "{label} with a {value}", "hasInput": true, "id": "1770239542419", "isPolicyLevel": true, "label": "PIP"}, {"format": "{label} with a {value}", "hasInput": true, "id": "1770239554968", "isPolicyLevel": true, "label": "Uninsured Motorist Bodily Injury"}, {"format": "{label} with a {value}", "hasInput": true, "id": "1770239576712", "isPolicyLevel": true, "label": "Uninsured Motorist Property Damage"}, {"format": "{label} with a {value}", "hasInput": true, "id": "1770245938448", "isPolicyLevel": true, "label": "Property Damage Liability "}], "template": "Excellent news, I found a great rate with {carrier}. {policy}. {vehicles}. I will get this started today for {down} down and {monthly} a month. {closing}", "vehicleTemplate": "for your {name}, we have you set up with {coverages}"}, "resources": [{"content": "link.com", "id": "1", "title": "Sales Resources", "type": "link"}]}
+</file>
+
+<file path="requirements.txt">
+flask
+flask-cors
+gunicorn
+</file>
+
+</files>

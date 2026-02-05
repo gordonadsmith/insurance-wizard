@@ -7,7 +7,7 @@ import { Plus, RefreshCw, ChevronRight, Trash2, Save, Building2, X, DollarSign, 
 import './App.css';
 
 // --- ASSETS ---
-import jerryLogo from './jerry_logo.png'; // Ensure file exists in src folder
+import jerryLogo from './jerry_logo.png'; 
 
 // --- CONFIG ---
 const API_URL = "/api"; 
@@ -24,7 +24,7 @@ const DEFAULT_CARRIERS = {
 };
 
 const DEFAULT_RESOURCES = [
-  { id: '1', title: 'Callback Script', type: 'text', content: 'Hi, this is [Name] from Jerry. I was working on your quote and found a potential discount...' },
+  { id: '1', title: 'Callback Script', type: 'text', content: 'Hi, this is [Name] from Jerry.\n\nI was working on your quote and found a potential discount...' },
   { id: '2', title: 'Carrier Matrix', type: 'link', content: 'https://google.com' }
 ];
 
@@ -40,7 +40,7 @@ const DEFAULT_QUOTE_SETTINGS = {
   ],
   coverageFormat: "{label} with {value}", 
   vehicleTemplate: "for {name}, we have {coverages}",
-  template: "Excellent news, I found a great rate with {carrier}. {policy}. Then {vehicles}. I will get this started today for {down} down and {monthly} a month. {closing}"
+  template: "Excellent news, I found a great rate with {carrier}.\n\n{policy}.\n\nThen {vehicles}.\n\nI will get this started today for {down} down and {monthly} a month. {closing}"
 };
 
 // --- COMPONENT: Quote Builder ---
@@ -139,7 +139,12 @@ const QuoteBuilderForm = ({ closingQuestion, settings = DEFAULT_QUOTE_SETTINGS, 
         ))}
         <button onClick={addVehicle} style={{fontSize:'12px', color: JERRY_PINK, background:'none', border:'none', cursor:'pointer', textAlign:'left', padding:0, fontWeight:'bold'}}>+ Add another vehicle</button>
       </div>
-      <div style={{marginTop:'4px'}}><label style={{fontSize:'11px', fontWeight:'bold', color: JERRY_PINK}}>WORD TRACK:</label><div style={{background:'white', border:`2px solid ${JERRY_PINK}`, borderRadius:'8px', padding:'12px', fontSize:'15px', lineHeight:'1.5', whiteSpace: 'pre-wrap'}}>{generateScript()}</div></div>
+      <div style={{marginTop:'4px'}}>
+        <label style={{fontSize:'11px', fontWeight:'bold', color: JERRY_PINK}}>WORD TRACK:</label>
+        <div className="formatted-text" style={{background:'white', border:`2px solid ${JERRY_PINK}`, borderRadius:'8px', padding:'12px', fontSize:'15px'}}>
+          {generateScript()}
+        </div>
+      </div>
     </div>
   );
 };
@@ -239,7 +244,7 @@ const ResourceSidebar = ({ resources, setResources }) => {
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: `1px solid ${BORDER}`, paddingBottom: '10px'}}>
               <h3 style={{margin: 0, fontSize: '18px', color: JERRY_PINK}}>{activeResource.title}</h3><button onClick={() => setActiveResource(null)} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20}/></button>
             </div>
-            <div style={{flexGrow: 1, overflowY: 'auto', fontSize: '14px', lineHeight: '1.6', whiteSpace: 'pre-wrap'}}>{activeResource.content}</div>
+            <div className="formatted-text" style={{flexGrow: 1, overflowY: 'auto', fontSize: '14px'}}>{activeResource.content}</div>
           </div>
         </div>
       )}
@@ -415,7 +420,7 @@ export default function App() {
               <div className="bubble" style={{background: '#F3F4F6'}}>
                 <div className="bubble-label" style={{color: SLATE}}>{step.data.label}</div>
                 {step.type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE}}>{step.data.text}</div>}
-                {step.type === 'carrierNode' && step.carrierInfo && <div><div style={{fontWeight:'bold', color:JERRY_PINK}}>{step.carrierInfo.name} Selected</div><div style={{fontSize:'12px', whiteSpace:'pre-wrap'}}>{step.carrierInfo.script}</div></div>}
+                {step.type === 'carrierNode' && step.carrierInfo && <div><div style={{fontWeight:'bold', color:JERRY_PINK}}>{step.carrierInfo.name} Selected</div><div className="formatted-text" style={{fontSize:'12px', marginTop:'4px'}}>{step.carrierInfo.script}</div></div>}
                 {step.type === 'quoteNode' && <div style={{fontStyle:'italic', color:'#666'}}>Quote presented.</div>}
               </div>
             </div>
@@ -429,7 +434,7 @@ export default function App() {
                 <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
                   <div className="bubble-text" style={{color: SLATE}}>Select carrier for instructions:</div>
                   <select style={{padding:'8px', borderRadius:'8px', border:`1px solid ${BORDER}`, fontSize:'14px'}} onChange={(e) => setSelectedCarrierId(e.target.value)} value={selectedCarrierId || ""}><option value="" disabled>-- Choose Carrier --</option>{Object.values(carriers).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                  {selectedCarrierId && carriers[selectedCarrierId] && <div style={{background:'white', padding:'10px', borderRadius:'8px', border:`1px solid ${BORDER}`}}><div style={{fontWeight:'bold', color:JERRY_PINK, marginBottom:'6px'}}>{carriers[selectedCarrierId].name}</div><div style={{marginTop:'8px', fontSize:'13px', color:SLATE, whiteSpace:'pre-wrap'}}>{carriers[selectedCarrierId].script}</div></div>}
+                  {selectedCarrierId && carriers[selectedCarrierId] && <div style={{background:'white', padding:'10px', borderRadius:'8px', border:`1px solid ${BORDER}`}}><div style={{fontWeight:'bold', color:JERRY_PINK, marginBottom:'6px'}}>{carriers[selectedCarrierId].name}</div><div className="formatted-text" style={{marginTop:'8px', fontSize:'13px', color:SLATE}}>{carriers[selectedCarrierId].script}</div></div>}
                 </div>
               )}
               {getCurrentNode().type === 'quoteNode' && (<QuoteBuilderForm closingQuestion={getCurrentNode().data.closingQuestion} settings={quoteSettings} carriers={carriers} />)}
