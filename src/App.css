@@ -17,11 +17,28 @@ body {
   --border: #E5E7EB;
 }
 
-/* --- CRITICAL FIX: FORCE LINE BREAKS --- */
-.bubble-text, .formatted-text {
-  white-space: pre-wrap !important; /* Forces the browser to respect new lines */
-  word-wrap: break-word;            /* Prevents long words from breaking layout */
-  line-height: 1.6;                 /* Improves readability */
+/* --- CRITICAL FIX: PROPER WORD WRAPPING --- */
+.bubble-text, 
+.bubble-text *,
+.formatted-text-content,
+.formatted-text-content *,
+.ql-editor,
+.ql-editor * {
+  /* CHANGED: Use normal white-space, NOT pre-wrap */
+  white-space: normal !important;
+  /* Proper word wrapping */
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+  /* Don't break words in the middle unless absolutely necessary */
+  word-break: normal !important;
+  /* Improve readability */
+  line-height: 1.6;
+}
+
+/* Ensure paragraphs have proper spacing */
+.bubble-text p,
+.formatted-text-content p {
+  margin: 0 0 8px 0;
 }
 
 .app-container {
@@ -56,6 +73,9 @@ body {
   box-shadow: 0 2px 4px rgba(0,0,0,0.02);
   margin-bottom: 20px;
   position: relative;
+  /* Ensure bubble itself wraps properly */
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .bubble-label {

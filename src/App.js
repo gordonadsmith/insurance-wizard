@@ -464,24 +464,6 @@ export default function App() {
   // Checklist State Tracking
   const [activeChecklistState, setActiveChecklistState] = useState({});
 
-  // Global CSS injection for word wrapping
-  useEffect(() => {
-    const style = document.createElement('style');
-    style.innerHTML = `
-      .bubble-text p, .formatted-text-content p { 
-        margin: 0 0 8px 0; 
-        word-wrap: break-word; 
-      }
-      .bubble-text, .formatted-text-content {
-        min-width: 0;
-        width: 100%;
-        word-wrap: break-word;
-      }
-    `;
-    document.head.appendChild(style);
-    return () => document.head.removeChild(style);
-  }, []);
-
   const updateNodeData = useCallback((id, newData) => {
     setNodes((nds) => nds.map((node) => node.id === id ? { ...node, data: { ...newData, onChange: updateNodeData, setAsStartNode: setAsStartNode } } : node));
   }, [setNodes]);
