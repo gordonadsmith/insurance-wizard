@@ -4,9 +4,9 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import ReactQuill from 'react-quill-new';
-import 'react-quill-new/dist/quill.snow.css';   // Snow theme for Carrier Manager
-import 'react-quill-new/dist/quill.bubble.css'; // Bubble theme for Graph Nodes
-import { Plus, RefreshCw, ChevronRight, Trash2, Save, Building2, X, DollarSign, Settings, CheckSquare, Copy, Layers, Lock, Unlock, Flag, BookOpen, Link as LinkIcon, FileText, Edit, FolderOpen } from 'lucide-react';
+import 'react-quill-new/dist/quill.snow.css';   
+import 'react-quill-new/dist/quill.bubble.css'; 
+import { Plus, RefreshCw, ChevronRight, Trash2, Save, Building2, X, DollarSign, Settings, CheckSquare, Copy, Layers, Lock, Unlock, Flag, BookOpen, Link as LinkIcon, FileText, Edit, FolderOpen, ClipboardCheck } from 'lucide-react';
 import './App.css';
 
 // --- ASSETS ---
@@ -20,6 +20,7 @@ const JERRY_PINK = "#E9406A";
 const JERRY_BG = "#FDF2F4"; 
 const SLATE = "#475569";
 const BORDER = "#E5E7EB";
+const COMPLIANCE_ORANGE = "#F59E0B"; 
 
 // --- HELPER: ROBUST LINE BREAKER ---
 const FormatText = ({ text }) => {
@@ -97,21 +98,10 @@ const QuoteBuilderForm = ({ closingQuestion, settings = DEFAULT_QUOTE_SETTINGS, 
     const policyItems = policyChecks.map(cId => formatItem(cId, policyValues[cId]));
     let policyString = policyItems.length > 0 ? `On the policy level, we have included ${joinList(policyItems)}` : "This includes basic state minimums";
 
-    const vehDefinitions = vehicles.map(v => {
-      const covItems = v.coverages.map(cId => formatItem(cId, v.values[cId]));
-      return { name: v.name || "vehicle", covString: covItems.sort().join("|"), displayList: covItems };
-    });
-
-    const groups = [];
-    vehDefinitions.forEach(veh => {
-      const match = groups.find(g => g.covString === veh.covString);
-      if (match) match.names.push(veh.name); else groups.push({ names: [veh.name], covString: veh.covString, displayList: veh.displayList });
-    });
-
-    const vehiclesString = groups.map(group => {
-      const covList = group.displayList.length > 0 ? joinList(group.displayList) : "state minimums";
-      let namePart = group.names.length === 1 ? `the <b>${group.names[0]}</b>` : group.names.length === 2 ? `both your <b>${group.names.join(" and ")}</b>` : `your <b>${joinList(group.names)}</b>`;
-      return (settings.vehicleTemplate || "for {name}, we have {coverages}").replace("{name}", namePart).replace("{coverages}", covList);
+    const vehiclesString = vehicles.map(v => {
+        const covItems = v.coverages.map(cId => formatItem(cId, v.values[cId]));
+        const covList = covItems.length > 0 ? joinList(covItems) : "state minimums";
+        return (settings.vehicleTemplate || "for {name}, we have {coverages}").replace("{name}", `<b>${v.name || "Vehicle"}</b>`).replace("{coverages}", covList);
     }).join(". ");
 
     const carrierName = carriers[selectedCarrier]?.name || "our partner";
@@ -312,7 +302,6 @@ const ScriptNode = ({ id, data }) => (
         <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
     </div>
     <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
-    {/* Using ReactQuill inside a node requires 'nodrag' to prevent dragging the node while typing */}
     <div className="nodrag" style={{background:'white'}}>
         <ReactQuill theme="bubble" value={data.text} onChange={(val) => data.onChange(id, { ...data, text: val })} placeholder="Type script..." />
     </div>
@@ -346,7 +335,20 @@ const QuoteNode = ({ id, data }) => (
   </div>
 );
 
-const nodeTypes = { scriptNode: ScriptNode, carrierNode: CarrierNode, quoteNode: QuoteNode };
+const ChecklistNode = ({ id, data }) => (
+  <div className="node-card" style={{border: data.isStart ? `2px solid ${JERRY_PINK}` : `1px solid ${COMPLIANCE_ORANGE}`, boxShadow: `0 4px 6px -1px ${COMPLIANCE_ORANGE}20`}}>
+    <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
+    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
+        <div style={{display:'flex', alignItems:'center', gap:'6px'}}><ClipboardCheck size={14} color={COMPLIANCE_ORANGE}/><span style={{fontSize:'11px', color:COMPLIANCE_ORANGE, fontWeight:'800'}}>COMPLIANCE CHECK</span></div>
+        <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+    </div>
+    <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
+    <textarea className="nodrag node-input-text" style={{minHeight: '80px', fontFamily: 'monospace'}} value={data.items} onChange={(evt) => data.onChange(id, { ...data, items: evt.target.value })} placeholder="Enter one question per line... End with (yes/no) for radio buttons" />
+    <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
+  </div>
+);
+
+const nodeTypes = { scriptNode: ScriptNode, carrierNode: CarrierNode, quoteNode: QuoteNode, checklistNode: ChecklistNode };
 
 // --- MAIN APP ---
 export default function App() {
@@ -368,6 +370,10 @@ export default function App() {
   const [currentNodeId, setCurrentNodeId] = useState(null);
   const [history, setHistory] = useState([]);
   const [selectedCarrierId, setSelectedCarrierId] = useState(null);
+  
+  // Checklist State Tracking - CHANGED to store Key:Value pairs instead of Array
+  // Structure: { nodeId: { "Question 1": "checked", "Question 2": "yes", "Question 3": "no" } }
+  const [activeChecklistState, setActiveChecklistState] = useState({});
 
   const updateNodeData = useCallback((id, newData) => {
     setNodes((nds) => nds.map((node) => node.id === id ? { ...node, data: { ...newData, onChange: updateNodeData, setAsStartNode: setAsStartNode } } : node));
@@ -382,13 +388,10 @@ export default function App() {
 
   // Load list of flows AND current flow
   useEffect(() => {
-    // 1. Get list of files
     fetch(`${API_URL}/flows`).then(res => res.json()).then(files => {
         if(files.length === 0) setAvailableFlows(["default_flow.json"]);
         else setAvailableFlows(files);
     }).catch(() => setAvailableFlows(["default_flow.json"]));
-
-    // 2. Load the actual data for current flow
     loadFlowData(currentFlowName);
   }, []);
 
@@ -396,10 +399,7 @@ export default function App() {
     fetch(`${API_URL}/load?filename=${filename}`)
       .then(res => res.json())
       .then(data => {
-        // --- SAFETY CHECK & RESET ---
-        // If file is empty/new, force a hard reset to defaults
         if (!data.nodes || data.nodes.length === 0) {
-            console.log("File is empty or invalid, resetting to default.");
             setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome to the Insurance Wizard', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
             setEdges([]);
             setCarriers(DEFAULT_CARRIERS);
@@ -408,27 +408,17 @@ export default function App() {
             setHistory([]);
             return;
         }
-
-        // --- NORMAL LOAD ---
         const nodesWithHandler = data.nodes.map(n => ({ ...n, data: { ...n.data, onChange: updateNodeData, setAsStartNode: setAsStartNode } }));
         setNodes(nodesWithHandler);
         setEdges(data.edges || []);
-        
-        // --- ISOLATION FIX: Revert to defaults if key is missing in JSON ---
         setCarriers(data.carriers || DEFAULT_CARRIERS);
         setResources(data.resources || DEFAULT_RESOURCES);
         setQuoteSettings(data.quoteSettings || DEFAULT_QUOTE_SETTINGS);
-        
-        // Clear history so you don't see old chat
         setHistory([]);
-        
-        // Reset Start Node
+        setActiveChecklistState({}); // Reset checklists
         const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
         if(start) setCurrentNodeId(start.id);
-
       }).catch(err => {
-          console.error("Error loading flow:", err);
-          // ON ERROR: Force a reset
           setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Error loading file. Resetting...', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
           setEdges([]);
           setHistory([]);
@@ -441,11 +431,8 @@ export default function App() {
           const name = prompt("Enter name for new Playbook (e.g., 'Home Insurance'):");
           if (name) {
               const safeName = name.toLowerCase().replace(/ /g, '_') + ".json";
-              // Update list immediately
               setAvailableFlows(prev => [...prev, safeName]);
               setCurrentFlowName(safeName);
-              
-              // --- HARD RESET FOR NEW FILE ---
               setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
               setEdges([]);
               setCarriers(DEFAULT_CARRIERS);
@@ -455,7 +442,6 @@ export default function App() {
               setCurrentNodeId('1');
           }
       } else {
-          // Switch existing
           setCurrentFlowName(newFile);
           loadFlowData(newFile);
       }
@@ -467,7 +453,7 @@ export default function App() {
       method: 'POST', 
       headers: {'Content-Type': 'application/json'}, 
       body: JSON.stringify({ 
-          filename: currentFlowName, // Send filename so backend knows where to save
+          filename: currentFlowName, 
           nodes: cleanNodes, edges, carriers, quoteSettings, resources 
         }) 
     }).then(res => res.json()).then(d => alert(d.message));
@@ -477,6 +463,8 @@ export default function App() {
   const addNewNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'scriptNode', position: {x:250, y:150}, data: {label:'Step', text:'', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
   const addCarrierNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'carrierNode', position: {x:250, y:150}, data: {label:'Select Carrier', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
   const addQuoteNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'quoteNode', position: {x:250, y:150}, data: {label:'Present Quote', closingQuestion:'How does that price sound?', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
+  const addChecklistNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'checklistNode', position: {x:250, y:150}, data: {label:'Compliance Check', items:'Did you disclose the TCPA? (yes/no)\nDid you verify date of birth?', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
+  
   const deleteSelected = useCallback(() => { setNodes((nds) => nds.filter((n) => !n.selected)); setEdges((eds) => eds.filter((e) => !e.selected)); }, [setNodes, setEdges]);
   const getCurrentNode = () => nodes.find(n => n.id === currentNodeId);
   const getOptions = () => edges.filter(e => e.source === currentNodeId).map(e => ({ label: e.label || "Next", targetId: e.target }));
@@ -484,16 +472,130 @@ export default function App() {
   const handleOptionClick = (targetId, label) => {
     const current = getCurrentNode();
     let historyData = { ...current, selectedOption: label };
-    if (current.type === 'carrierNode' && selectedCarrierId) historyData.carrierInfo = carriers[selectedCarrierId];
+    
+    // Capture specific data based on node type
+    if (current.type === 'carrierNode' && selectedCarrierId) {
+        historyData.carrierInfo = carriers[selectedCarrierId];
+    }
+    if (current.type === 'checklistNode') {
+        // Save the map of { question: answer }
+        historyData.checklistAnswers = activeChecklistState[current.id] || {};
+    }
+
     setHistory(prev => [...prev, historyData]);
     setCurrentNodeId(targetId);
     setSelectedCarrierId(null);
   };
+
   const resetWizard = () => { 
       const start = nodes.find(n => n.data.isStart) || nodes.find(n => n.id === '1') || nodes[0]; 
       if(start) setCurrentNodeId(start.id); 
       setHistory([]); 
       setSelectedCarrierId(null); 
+      setActiveChecklistState({});
+  };
+
+  // NEW Helper: Update answer state (Supports "checked", "Yes", "No")
+  const updateChecklistAnswer = (nodeId, itemText, value) => {
+      setActiveChecklistState(prev => {
+          const nodeState = prev[nodeId] || {};
+          // If value is null, remove the key (uncheck)
+          if (value === null) {
+              const newState = { ...nodeState };
+              delete newState[itemText];
+              return { ...prev, [nodeId]: newState };
+          }
+          // Otherwise set the value ("checked", "Yes", "No")
+          return { ...prev, [nodeId]: { ...nodeState, [itemText]: value } };
+      });
+  };
+
+  const generateComplianceReport = () => {
+      let report = `COMPLIANCE LOG - ${new Date().toLocaleString()}\n`;
+      const complianceSteps = history.filter(h => h.type === 'checklistNode');
+      if (complianceSteps.length === 0) return null;
+
+      complianceSteps.forEach(step => {
+          report += `\n[${step.data.label}]\n`;
+          const allItems = (step.data.items || "").split('\n').filter(i => i.trim() !== "");
+          const answers = step.checklistAnswers || {};
+          
+          allItems.forEach(rawItem => {
+              const isYesNo = rawItem.toLowerCase().includes('(yes/no)');
+              const cleanItem = rawItem.replace(/\(yes\/no\)/i, '').trim();
+              const val = answers[cleanItem];
+
+              if (isYesNo) {
+                  // CHANGED: Answer on LEFT side in brackets [YES]
+                  const displayVal = val ? val.toUpperCase() : ' ';
+                  report += `[${displayVal}] ${cleanItem}\n`;
+              } else {
+                  // Checkbox also on LEFT side [X]
+                  report += `[${val ? 'X' : ' '}] ${cleanItem}\n`;
+              }
+          });
+      });
+      return report;
+  };
+
+  const copyCompliance = () => {
+      const text = generateComplianceReport();
+      if(text) {
+          navigator.clipboard.writeText(text);
+          alert("Compliance Log copied to clipboard!");
+      } else {
+          alert("No compliance steps recorded.");
+      }
+  };
+
+  // Helper to render checklist items in history/active view
+  const renderChecklistItems = (itemsText, answers, nodeId, isInteractive) => {
+      return (itemsText || "").split('\n').map((rawItem, i) => {
+          if (!rawItem.trim()) return null;
+          const isYesNo = rawItem.toLowerCase().includes('(yes/no)');
+          const cleanItem = rawItem.replace(/\(yes\/no\)/i, '').trim();
+          const currentVal = answers ? answers[cleanItem] : null;
+
+          if (isYesNo) {
+             return (
+                 <div key={i} style={{margin:'8px 0', padding:'8px', background:'white', border:`1px solid ${BORDER}`, borderRadius:'6px'}}>
+                     <div style={{fontSize:'14px', color:SLATE, marginBottom:'6px', fontWeight:'500'}}>{cleanItem}</div>
+                     <div style={{display:'flex', gap:'12px'}}>
+                         <label style={{display:'flex', alignItems:'center', gap:'4px', cursor: isInteractive ? 'pointer' : 'default'}}>
+                             <input type="radio" 
+                                disabled={!isInteractive}
+                                checked={currentVal === 'Yes'} 
+                                onChange={() => isInteractive && updateChecklistAnswer(nodeId, cleanItem, 'Yes')}
+                                style={{accentColor: COMPLIANCE_ORANGE}}
+                             />
+                             <span style={{fontSize:'13px'}}>Yes</span>
+                         </label>
+                         <label style={{display:'flex', alignItems:'center', gap:'4px', cursor: isInteractive ? 'pointer' : 'default'}}>
+                             <input type="radio" 
+                                disabled={!isInteractive}
+                                checked={currentVal === 'No'} 
+                                onChange={() => isInteractive && updateChecklistAnswer(nodeId, cleanItem, 'No')}
+                                style={{accentColor: COMPLIANCE_ORANGE}}
+                             />
+                             <span style={{fontSize:'13px'}}>No</span>
+                         </label>
+                     </div>
+                 </div>
+             );
+          } else {
+              return (
+                  <label key={i} style={{display:'flex', gap:'10px', alignItems:'center', cursor: isInteractive ? 'pointer' : 'default', padding:'8px', background: isInteractive ? 'white' : 'transparent', borderRadius:'6px', border: isInteractive ? `1px solid ${BORDER}` : 'none'}}>
+                      <input type="checkbox" 
+                        disabled={!isInteractive}
+                        checked={!!currentVal}
+                        onChange={() => isInteractive && updateChecklistAnswer(nodeId, cleanItem, currentVal ? null : 'checked')}
+                        style={{width:'16px', height:'16px', accentColor: COMPLIANCE_ORANGE}}
+                      />
+                      <span style={{fontSize:'14px', color:SLATE}}>{cleanItem}</span>
+                  </label>
+              );
+          }
+      });
   };
 
   return (
@@ -510,12 +612,10 @@ export default function App() {
           display:'flex', flexDirection:'column', background: 'white'
         }}>
         <div className="wizard-header" style={{borderBottom:`1px solid ${BORDER}`, padding:'15px 20px', display:'flex', alignItems:'center'}}>
-          {/* REPLACED LOGO CIRCLE WITH IMAGE */}
           <img src={jerryLogo} alt="Jerry" style={{height:'30px', marginRight:'10px'}} />
           <div style={{ fontWeight: '700', fontSize: '18px', color: SLATE }}>Insurance Wizard</div>
           <div style={{ flexGrow: 1 }}></div>
           
-          {/* AGENT PLAYBOOK SELECTOR (No "New" option) */}
           <div style={{display:'flex', alignItems:'center', gap:'4px', marginRight:'12px'}}>
               <FolderOpen size={16} color={SLATE} />
               <select value={currentFlowName} onChange={(e) => { setCurrentFlowName(e.target.value); loadFlowData(e.target.value); }} style={{fontSize:'12px', padding:'4px', borderRadius:'4px', maxWidth:'120px', border:`1px solid ${BORDER}`}}>
@@ -536,15 +636,22 @@ export default function App() {
                 <div className="bubble-label" style={{color: SLATE}}>{step.data.label}</div>
                 {step.type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE}} dangerouslySetInnerHTML={{__html: step.data.text}}></div>}
                 {step.type === 'carrierNode' && step.carrierInfo && <div><div style={{fontWeight:'bold', color:JERRY_PINK}}>{step.carrierInfo.name} Selected</div><div style={{fontSize:'12px'}} dangerouslySetInnerHTML={{__html: step.carrierInfo.script}}></div></div>}
+                {step.type === 'checklistNode' && (
+                    <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
+                        {renderChecklistItems(step.data.items, step.checklistAnswers, step.id, false)}
+                    </div>
+                )}
                 {step.type === 'quoteNode' && <div style={{fontStyle:'italic', color:'#666'}}>Quote presented.</div>}
               </div>
             </div>
           ))}
           
           {getCurrentNode() && (
-            <div className="bubble" style={{ borderLeft: `4px solid ${getCurrentNode().type === 'carrierNode' ? '#8b5cf6' : getCurrentNode().type === 'quoteNode' ? JERRY_PINK : '#E5090E'}`, background: JERRY_BG }}>
+            <div className="bubble" style={{ borderLeft: `4px solid ${getCurrentNode().type === 'carrierNode' ? '#8b5cf6' : getCurrentNode().type === 'quoteNode' ? JERRY_PINK : getCurrentNode().type === 'checklistNode' ? COMPLIANCE_ORANGE : '#E5090E'}`, background: JERRY_BG }}>
               <div className="bubble-label" style={{color: JERRY_PINK}}>{getCurrentNode().data.label}</div>
+              
               {getCurrentNode().type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE}} dangerouslySetInnerHTML={{__html: getCurrentNode().data.text}}></div>}
+              
               {getCurrentNode().type === 'carrierNode' && (
                 <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
                   <div className="bubble-text" style={{color: SLATE}}>Select carrier for instructions:</div>
@@ -552,6 +659,13 @@ export default function App() {
                   {selectedCarrierId && carriers[selectedCarrierId] && <div style={{background:'white', padding:'10px', borderRadius:'8px', border:`1px solid ${BORDER}`}}><div style={{fontWeight:'bold', color:JERRY_PINK, marginBottom:'6px'}}>{carriers[selectedCarrierId].name}</div><div style={{fontSize:'13px', color:SLATE}} dangerouslySetInnerHTML={{__html: carriers[selectedCarrierId].script}}></div></div>}
                 </div>
               )}
+
+              {getCurrentNode().type === 'checklistNode' && (
+                  <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+                      {renderChecklistItems(getCurrentNode().data.items, activeChecklistState[getCurrentNode().id], getCurrentNode().id, true)}
+                  </div>
+              )}
+
               {getCurrentNode().type === 'quoteNode' && (<QuoteBuilderForm closingQuestion={getCurrentNode().data.closingQuestion} settings={quoteSettings} carriers={carriers} />)}
             </div>
           )}
@@ -561,7 +675,17 @@ export default function App() {
           {getCurrentNode() && getOptions().map((opt, idx) => (
             <button key={idx} className="btn-option" disabled={getCurrentNode().type === 'carrierNode' && !selectedCarrierId} style={{opacity: (getCurrentNode().type === 'carrierNode' && !selectedCarrierId) ? 0.5 : 1, borderColor: BORDER, color: SLATE}} onClick={() => handleOptionClick(opt.targetId, opt.label)}><span>{opt.label}</span><ChevronRight size={16} color={JERRY_PINK} /></button>
           ))}
-          {getCurrentNode() && getOptions().length === 0 && <button className="btn btn-primary" onClick={resetWizard} style={{background: JERRY_PINK, border:'none'}}>Complete</button>}
+          {getCurrentNode() && getOptions().length === 0 && (
+             <div style={{display:'flex', flexDirection:'column', gap:'10px', width:'100%'}}>
+                 {/* Only show "Copy Compliance Log" if checklists exist in history */}
+                 {history.some(h => h.type === 'checklistNode') && (
+                      <button onClick={copyCompliance} className="btn-secondary" style={{borderColor: COMPLIANCE_ORANGE, color: '#9a3412', background:'#fff7ed', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px'}}>
+                         <ClipboardCheck size={16}/> Copy Compliance Log
+                      </button>
+                 )}
+                 <button className="btn btn-primary" onClick={resetWizard} style={{background: JERRY_PINK, border:'none', width: '100%'}}>Complete Call</button>
+             </div>
+          )}
         </div>
       </div>
 
@@ -571,7 +695,6 @@ export default function App() {
             <button className="btn btn-primary" onClick={saveToServer} style={{background: JERRY_PINK, border:'none'}}><Save size={16}/></button>
             <div style={{width:'1px', height:'20px', background: BORDER, margin:'0 4px'}}></div>
             
-            {/* --- ADMIN PLAYBOOK SELECTOR --- */}
             <div style={{display:'flex', alignItems:'center', gap:'4px', marginRight:'8px'}}>
                 <FolderOpen size={16} color={SLATE} />
                 <select value={currentFlowName} onChange={handleSwitchFlow} style={{fontSize:'12px', padding:'4px', borderRadius:'4px', maxWidth:'120px'}}>
@@ -585,6 +708,7 @@ export default function App() {
             <button className="btn btn-secondary" onClick={() => setCarrierModalOpen(true)} title="Carriers"><Building2 size={16}/></button>
             <div style={{width:'1px', height:'20px', background: BORDER, margin:'0 4px'}}></div>
             <button className="btn btn-secondary" onClick={addNewNode} title="Add Script"><Plus size={16}/></button>
+            <button className="btn btn-secondary" onClick={addChecklistNode} style={{color: COMPLIANCE_ORANGE}} title="Add Checklist"><ClipboardCheck size={16}/></button>
             <button className="btn btn-secondary" onClick={addCarrierNode} style={{color:'#8b5cf6'}} title="Add Carrier"><Building2 size={16}/></button>
             <button className="btn btn-secondary" onClick={addQuoteNode} style={{color: JERRY_PINK}} title="Add Quote"><DollarSign size={16}/></button>
             <div style={{flexGrow:1}}></div>
