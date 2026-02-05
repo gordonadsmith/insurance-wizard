@@ -3,7 +3,10 @@ import ReactFlow, {
   addEdge, Background, Controls, useNodesState, useEdgesState, Handle, Position 
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Plus, RefreshCw, ChevronRight, Trash2, Save, Building2, X, DollarSign, Settings, CheckSquare, Copy, Layers, Lock, Unlock, Flag, BookOpen, Link as LinkIcon, FileText, Edit } from 'lucide-react';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';   // Snow theme for Carrier Manager
+import 'react-quill-new/dist/quill.bubble.css'; // Bubble theme for Graph Nodes
+import { Plus, RefreshCw, ChevronRight, Trash2, Save, Building2, X, DollarSign, Settings, CheckSquare, Copy, Layers, Lock, Unlock, Flag, BookOpen, Link as LinkIcon, FileText, Edit, FolderOpen } from 'lucide-react';
 import './App.css';
 
 // --- ASSETS ---
@@ -18,29 +21,41 @@ const JERRY_BG = "#FDF2F4";
 const SLATE = "#475569";
 const BORDER = "#E5E7EB";
 
+// --- HELPER: ROBUST LINE BREAKER ---
+const FormatText = ({ text }) => {
+  if (!text) return null;
+  const htmlContent = text.replace(/\r?\n/g, '<br />');
+  return (
+    <div 
+      style={{ lineHeight: '1.6', wordBreak: 'break-word', cursor: 'text' }}
+      dangerouslySetInnerHTML={{ __html: htmlContent }} 
+    />
+  );
+};
+
 // --- DEFAULTS ---
 const DEFAULT_CARRIERS = {
-  "1": { id: "1", name: "Progressive", script: "Verify garaging address matches license.\nPhone: 1-800-776-4737" },
+  "1": { id: "1", name: "Progressive", script: "<p>Verify garaging address matches license.</p><p><strong>Phone:</strong> 1-800-776-4737</p>" },
 };
 
 const DEFAULT_RESOURCES = [
-  { id: '1', title: 'Callback Script', type: 'text', content: 'Hi, this is [Name] from Jerry.\n\nI was working on your quote and found a potential discount...' },
+  { id: '1', title: 'Callback Script', type: 'text', content: '<p>Hi, this is [Name] from Jerry.</p><p>I was working on your quote...</p>' },
   { id: '2', title: 'Carrier Matrix', type: 'link', content: 'https://google.com' }
 ];
 
 const DEFAULT_QUOTE_SETTINGS = {
   coverages: [
-    { id: 'bi_pd', label: 'Bodily Injury Liability', hasInput: true, placeholder: 'e.g. 100/300', isPolicyLevel: true, format: "{label} at {value}" },
-    { id: 'uim', label: 'Uninsured Motorist', hasInput: true, placeholder: 'e.g. 30/60', isPolicyLevel: true, format: "{label} at {value}" },
-    { id: 'pip', label: 'PIP', hasInput: false, isPolicyLevel: true, format: "standard {label}" },
-    { id: 'towing', label: 'Roadside', hasInput: false, isPolicyLevel: true, format: "{label}" },
-    { id: 'comp', label: 'Comprehensive', hasInput: true, placeholder: 'e.g. $500 Ded', isPolicyLevel: false, format: "{label} with a {value}" },
-    { id: 'coll', label: 'Collision', hasInput: true, placeholder: 'e.g. $500 Ded', isPolicyLevel: false, format: "{label} with a {value}" },
-    { id: 'rental', label: 'Rental', hasInput: true, placeholder: 'e.g. $1200', isPolicyLevel: false, format: "{value} for {label}" },
+    { id: 'bi_pd', label: 'Bodily Injury Liability', hasInput: true, placeholder: 'e.g. 100/300', isPolicyLevel: true, format: "<b>{label}</b> at {value}" },
+    { id: 'uim', label: 'Uninsured Motorist', hasInput: true, placeholder: 'e.g. 30/60', isPolicyLevel: true, format: "<b>{label}</b> at {value}" },
+    { id: 'pip', label: 'PIP', hasInput: false, isPolicyLevel: true, format: "standard <b>{label}</b>" },
+    { id: 'towing', label: 'Roadside', hasInput: false, isPolicyLevel: true, format: "<b>{label}</b>" },
+    { id: 'comp', label: 'Comprehensive', hasInput: true, placeholder: 'e.g. $500 Ded', isPolicyLevel: false, format: "<b>{label}</b> with a {value}" },
+    { id: 'coll', label: 'Collision', hasInput: true, placeholder: 'e.g. $500 Ded', isPolicyLevel: false, format: "<b>{label}</b> with a {value}" },
+    { id: 'rental', label: 'Rental', hasInput: true, placeholder: 'e.g. $1200', isPolicyLevel: false, format: "{value} for <b>{label}</b>" },
   ],
-  coverageFormat: "{label} with {value}", 
+  coverageFormat: "<b>{label}</b> with {value}", 
   vehicleTemplate: "for {name}, we have {coverages}",
-  template: "Excellent news, I found a great rate with {carrier}.\n\n{policy}.\n\nThen {vehicles}.\n\nI will get this started today for {down} down and {monthly} a month. {closing}"
+  template: "<p>Excellent news, I found a great rate with <strong>{carrier}</strong>.</p><p>{policy}</p><p>Then {vehicles}.</p><p>I will get this started today for <strong>{down} down</strong> and <strong>{monthly} a month</strong>.</p><p>{closing}</p>"
 };
 
 // --- COMPONENT: Quote Builder ---
@@ -69,13 +84,13 @@ const QuoteBuilderForm = ({ closingQuestion, settings = DEFAULT_QUOTE_SETTINGS, 
   const matchVehicleOne = (targetId) => { const v1 = vehicles[0]; setVehicles(vehicles.map(v => v.id === targetId ? { ...v, coverages: [...v1.coverages], values: { ...v1.values } } : v)); };
 
   const generateScript = () => {
-    if (!downPayment || !monthly) return "Enter pricing to generate script.";
+    if (!downPayment || !monthly) return "<p><i>Enter pricing to generate script.</i></p>";
     const joinList = (l) => l.length === 0 ? "" : l.length === 1 ? l[0] : l.length === 2 ? `${l[0]} and ${l[1]}` : `${l.slice(0, -1).join(", ")}, and ${l.slice(-1)}`;
     const formatItem = (cId, val) => {
       const conf = settings.coverages.find(s => s.id === cId);
       if (!conf) return "";
       const fmt = conf.format || settings.coverageFormat || "{label} with {value}";
-      if (fmt.includes("{value}") && (!val || val.trim() === "")) return conf.label;
+      if (fmt.includes("{value}") && (!val || val.trim() === "")) return `<b>${conf.label}</b>`;
       return fmt.replace("{label}", conf.label).replace("{value}", val || "");
     };
 
@@ -95,7 +110,7 @@ const QuoteBuilderForm = ({ closingQuestion, settings = DEFAULT_QUOTE_SETTINGS, 
 
     const vehiclesString = groups.map(group => {
       const covList = group.displayList.length > 0 ? joinList(group.displayList) : "state minimums";
-      let namePart = group.names.length === 1 ? `the ${group.names[0]}` : group.names.length === 2 ? `both your ${group.names.join(" and ")}` : `your ${joinList(group.names)}`;
+      let namePart = group.names.length === 1 ? `the <b>${group.names[0]}</b>` : group.names.length === 2 ? `both your <b>${group.names.join(" and ")}</b>` : `your <b>${joinList(group.names)}</b>`;
       return (settings.vehicleTemplate || "for {name}, we have {coverages}").replace("{name}", namePart).replace("{coverages}", covList);
     }).join(". ");
 
@@ -141,9 +156,7 @@ const QuoteBuilderForm = ({ closingQuestion, settings = DEFAULT_QUOTE_SETTINGS, 
       </div>
       <div style={{marginTop:'4px'}}>
         <label style={{fontSize:'11px', fontWeight:'bold', color: JERRY_PINK}}>WORD TRACK:</label>
-        <div className="formatted-text" style={{background:'white', border:`2px solid ${JERRY_PINK}`, borderRadius:'8px', padding:'12px', fontSize:'15px'}}>
-          {generateScript()}
-        </div>
+        <div style={{background:'white', border:`2px solid ${JERRY_PINK}`, borderRadius:'8px', padding:'12px', fontSize:'15px', lineHeight:'1.6'}} dangerouslySetInnerHTML={{__html: generateScript()}}></div>
       </div>
     </div>
   );
@@ -164,7 +177,9 @@ const SettingsManager = ({ isOpen, onClose, settings, setSettings }) => {
       <div style={{background:'white', width:'700px', borderRadius:'16px', display:'flex', flexDirection:'column', boxShadow:'0 20px 50px rgba(0,0,0,0.2)', maxHeight:'85vh', overflow:'hidden'}}>
         <div style={{padding:'20px', borderBottom:`1px solid ${BORDER}`, display:'flex', justifyContent:'space-between', alignItems:'center'}}><h2 style={{margin:0, fontSize:'18px', display:'flex', gap:'8px'}}><Settings color={JERRY_PINK}/> Quote Configuration</h2><button onClick={onClose} style={{background:'none', border:'none'}}><X size={24}/></button></div>
         <div style={{padding:'20px', overflowY:'auto'}}>
-          <div style={{marginBottom:'20px'}}><label style={{fontSize:'12px', fontWeight:'bold', color:'#999', display:'block', marginBottom:'8px'}}>MAIN TEMPLATE</label><textarea value={localSettings.template} onChange={(e) => setLocalSettings(prev => ({ ...prev, template: e.target.value }))} style={{width:'100%', height:'60px', padding:'8px', border:`1px solid ${BORDER}`, borderRadius:'4px', fontFamily:'monospace', fontSize:'13px'}}/></div>
+          <div style={{marginBottom:'20px'}}><label style={{fontSize:'12px', fontWeight:'bold', color:'#999', display:'block', marginBottom:'8px'}}>MAIN TEMPLATE (HTML Supported)</label>
+          <ReactQuill theme="snow" value={localSettings.template} onChange={(val) => setLocalSettings(prev => ({ ...prev, template: val }))} />
+          </div>
           <div style={{marginBottom:'20px'}}><label style={{fontSize:'12px', fontWeight:'bold', color:'#999', display:'block', marginBottom:'8px'}}>VEHICLE PHRASE FORMAT</label><input value={localSettings.vehicleTemplate} onChange={(e) => setLocalSettings(prev => ({ ...prev, vehicleTemplate: e.target.value }))} style={{width:'100%', padding:'8px', border:`1px solid ${BORDER}`, borderRadius:'4px', fontFamily:'monospace', fontSize:'13px'}}/></div>
           <div><label style={{fontSize:'12px', fontWeight:'bold', color:'#999', display:'block', marginBottom:'8px'}}>QUOTE FIELDS</label><div style={{display:'flex', flexDirection:'column', gap:'8px'}}>{localSettings.coverages.map(c => (<div key={c.id} style={{display:'flex', gap:'8px', alignItems:'center', background:'#f9fafb', padding:'8px', borderRadius:'6px', flexWrap:'wrap'}}><div style={{flexGrow:1, minWidth:'150px'}}><input value={c.label} onChange={(e) => updateCoverage(c.id, 'label', e.target.value)} style={{width:'100%', padding:'6px', border:`1px solid ${BORDER}`, borderRadius:'4px'}} placeholder="Label"/></div><div style={{flexGrow:2, minWidth:'200px'}}><input value={c.format || ""} onChange={(e) => updateCoverage(c.id, 'format', e.target.value)} style={{width:'100%', padding:'6px', border:`1px solid ${BORDER}`, borderRadius:'4px'}} placeholder="{label} with {value}"/></div><div style={{display:'flex', gap:'8px', marginTop:'0px'}}><div title="Policy Level?" onClick={() => updateCoverage(c.id, 'isPolicyLevel', !c.isPolicyLevel)} style={{display:'flex', alignItems:'center', gap:'4px', fontSize:'11px', cursor:'pointer', padding:'4px 8px', borderRadius:'4px', background:'white', border: c.isPolicyLevel ? `1px solid ${SLATE}` : `1px solid ${BORDER}`, color: c.isPolicyLevel ? SLATE : '#999'}}><Layers size={14} /> {c.isPolicyLevel ? "Policy" : "Veh"}</div><div title="Allow inputs?" onClick={() => updateCoverage(c.id, 'hasInput', !c.hasInput)} style={{display:'flex', alignItems:'center', gap:'4px', fontSize:'11px', cursor:'pointer', padding:'4px 8px', borderRadius:'4px', background:'white', border: c.hasInput ? `1px solid ${JERRY_PINK}` : `1px solid ${BORDER}`, color: c.hasInput ? JERRY_PINK : '#999'}}><CheckSquare size={14} /> {c.hasInput ? "Input" : "Fixed"}</div><button onClick={() => removeCoverage(c.id)} style={{color:'#ff4444', background:'none', border:'none'}}><Trash2 size={16}/></button></div></div>))} <button onClick={addCoverage} style={{padding:'8px', background:'#eee', border:'none', borderRadius:'4px', cursor:'pointer', fontWeight:'bold', width:'100%'}}>+ Add New Field</button></div></div></div>
         <div style={{padding:'20px', borderTop:`1px solid ${BORDER}`, display:'flex', justifyContent:'flex-end'}}><button className="btn-primary" onClick={handleSave} style={{background: JERRY_PINK, border:'none'}}>Save Configuration</button></div>
@@ -195,7 +210,7 @@ const ResourceManager = ({ isOpen, onClose, resources, setResources }) => {
                 <select value={r.type} onChange={e => update(r.id, 'type', e.target.value)} style={{padding:'6px', border:`1px solid ${BORDER}`, borderRadius:'4px'}}><option value="text">Text Popup</option><option value="link">Web Link</option></select>
                 <button onClick={() => remove(r.id)} style={{color:'red', border:'none', background:'none'}}><Trash2 size={16}/></button>
               </div>
-              <textarea value={r.content} onChange={e => update(r.id, 'content', e.target.value)} style={{width:'100%', height:'60px', padding:'6px', border:`1px solid ${BORDER}`, borderRadius:'4px'}} placeholder={r.type === 'link' ? "https://..." : "Type text content here..."}/>
+              <ReactQuill theme="snow" value={r.content} onChange={val => update(r.id, 'content', val)} />
             </div>
           ))}
           <button onClick={add} className="btn-secondary" style={{width:'100%'}}>+ Add Resource</button>
@@ -244,7 +259,7 @@ const ResourceSidebar = ({ resources, setResources }) => {
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: `1px solid ${BORDER}`, paddingBottom: '10px'}}>
               <h3 style={{margin: 0, fontSize: '18px', color: JERRY_PINK}}>{activeResource.title}</h3><button onClick={() => setActiveResource(null)} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20}/></button>
             </div>
-            <div className="formatted-text" style={{flexGrow: 1, overflowY: 'auto', fontSize: '14px'}}>{activeResource.content}</div>
+            <div style={{flexGrow: 1, overflowY: 'auto', fontSize: '14px', lineHeight: '1.6'}} dangerouslySetInnerHTML={{__html: activeResource.content}}></div>
           </div>
         </div>
       )}
@@ -264,12 +279,23 @@ const CarrierManager = ({ isOpen, onClose, carriers, setCarriers }) => {
 
   return (
     <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center'}}>
-      <div style={{background:'white', width:'600px', height:'500px', borderRadius:'16px', display:'flex', flexDirection:'column', boxShadow:'0 20px 50px rgba(0,0,0,0.2)'}}>
+      <div style={{background:'white', width:'600px', height:'600px', borderRadius:'16px', display:'flex', flexDirection:'column', boxShadow:'0 20px 50px rgba(0,0,0,0.2)'}}>
         <div style={{padding:'20px', borderBottom:`1px solid ${BORDER}`, display:'flex', justifyContent:'space-between'}}><h2 style={{margin:0, fontSize:'18px'}}>Manage Carriers</h2><button onClick={onClose} style={{border:'none', background:'none'}}><X size={24}/></button></div>
         <div style={{flexGrow:1, display:'flex', overflow:'hidden'}}>
           <div style={{width:'200px', borderRight:`1px solid ${BORDER}`, padding:'10px', background:'#f9fafb', overflowY:'auto'}}><button onClick={handleAdd} className="btn-primary" style={{width:'100%', marginBottom:'10px', background: JERRY_PINK, border:'none'}}>+ Add New</button>{Object.values(carriers).map(c => <div key={c.id} onClick={() => handleSelect(c.id)} style={{padding:'10px', cursor:'pointer', fontWeight: selectedId === c.id ? 'bold' : 'normal', color: selectedId === c.id ? JERRY_PINK : SLATE}}>{c.name}</div>)}</div>
-          <div style={{flexGrow:1, padding:'20px', overflowY:'auto'}}>
-            {selectedId && editForm ? (<div style={{display:'flex', flexDirection:'column', gap:'15px'}}><input className="node-input-text" style={{background:'white', border:`1px solid ${BORDER}`, width:'100%'}} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} placeholder="Carrier Name"/><textarea className="node-input-text" style={{background:'white', border:`1px solid ${BORDER}`, width:'100%'}} rows={10} value={editForm.script} onChange={e => setEditForm({...editForm, script: e.target.value})} placeholder="Instructions"/><div style={{display:'flex', gap:'10px'}}><button className="btn-primary" onClick={handleSave} style={{background:JERRY_PINK, border:'none'}}>Save</button><button className="btn-secondary" style={{color:'red', borderColor:'red'}} onClick={handleDelete}>Delete</button></div></div>) : <div style={{color:'#999'}}>Select a carrier</div>}
+          <div style={{flexGrow:1, padding:'20px', overflowY:'auto', display:'flex', flexDirection:'column'}}>
+            {selectedId && editForm ? (
+                <div style={{display:'flex', flexDirection:'column', gap:'15px', height:'100%'}}>
+                    <input className="node-input-text" style={{background:'white', border:`1px solid ${BORDER}`, width:'100%'}} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} placeholder="Carrier Name"/>
+                    <div style={{flexGrow:1}}>
+                        <ReactQuill theme="snow" value={editForm.script} onChange={(val) => setEditForm({...editForm, script: val})} style={{height:'300px'}}/>
+                    </div>
+                    <div style={{display:'flex', gap:'10px', marginTop:'60px'}}>
+                        <button className="btn-primary" onClick={handleSave} style={{background:JERRY_PINK, border:'none'}}>Save</button>
+                        <button className="btn-secondary" style={{color:'red', borderColor:'red'}} onClick={handleDelete}>Delete</button>
+                    </div>
+                </div>
+            ) : <div style={{color:'#999'}}>Select a carrier</div>}
           </div>
         </div>
       </div>
@@ -286,7 +312,10 @@ const ScriptNode = ({ id, data }) => (
         <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
     </div>
     <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
-    <textarea className="nodrag node-input-text" value={data.text} onChange={(evt) => data.onChange(id, { ...data, text: evt.target.value })} placeholder="Type script..." rows={4}/>
+    {/* Using ReactQuill inside a node requires 'nodrag' to prevent dragging the node while typing */}
+    <div className="nodrag" style={{background:'white'}}>
+        <ReactQuill theme="bubble" value={data.text} onChange={(val) => data.onChange(id, { ...data, text: val })} placeholder="Type script..." />
+    </div>
     <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
   </div>
 );
@@ -332,6 +361,10 @@ export default function App() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [resources, setResources] = useState(DEFAULT_RESOURCES);
 
+  // Playbook State (Multiple Flows)
+  const [availableFlows, setAvailableFlows] = useState([]);
+  const [currentFlowName, setCurrentFlowName] = useState("default_flow.json");
+
   const [currentNodeId, setCurrentNodeId] = useState(null);
   const [history, setHistory] = useState([]);
   const [selectedCarrierId, setSelectedCarrierId] = useState(null);
@@ -347,28 +380,96 @@ export default function App() {
     })));
   }, [setNodes]);
 
+  // Load list of flows AND current flow
   useEffect(() => {
-    fetch(`${API_URL}/load`).then(res => res.json()).then(data => {
-      const nodesWithHandler = data.nodes.map(n => ({ ...n, data: { ...n.data, onChange: updateNodeData, setAsStartNode: setAsStartNode } }));
-      setNodes(nodesWithHandler); setEdges(data.edges);
-      if (data.carriers) setCarriers(data.carriers);
-      if (data.resources) setResources(data.resources);
-      if (data.quoteSettings) {
-        let loaded = data.quoteSettings;
-        loaded.coverages = loaded.coverages.map(c => ({...c, format: c.format || (c.id.includes('bi')||c.id.includes('uim') ? "{label} at {value}" : c.id.includes('rental') ? "{value} for {label}" : c.id.includes('pip') ? "standard {label}" : "{label} with a {value}")}));
-        setQuoteSettings(loaded);
-      }
-      const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
-      if(start) setCurrentNodeId(start.id);
-    }).catch(err => { if(nodes.length === 0) setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]); });
+    // 1. Get list of files
+    fetch(`${API_URL}/flows`).then(res => res.json()).then(files => {
+        if(files.length === 0) setAvailableFlows(["default_flow.json"]);
+        else setAvailableFlows(files);
+    }).catch(() => setAvailableFlows(["default_flow.json"]));
+
+    // 2. Load the actual data for current flow
+    loadFlowData(currentFlowName);
   }, []);
+
+  const loadFlowData = (filename) => {
+    fetch(`${API_URL}/load?filename=${filename}`)
+      .then(res => res.json())
+      .then(data => {
+        // --- SAFETY CHECK & RESET ---
+        // If file is empty/new, force a hard reset to defaults
+        if (!data.nodes || data.nodes.length === 0) {
+            console.log("File is empty or invalid, resetting to default.");
+            setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome to the Insurance Wizard', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
+            setEdges([]);
+            setCarriers(DEFAULT_CARRIERS);
+            setResources(DEFAULT_RESOURCES);
+            setQuoteSettings(DEFAULT_QUOTE_SETTINGS);
+            setHistory([]);
+            return;
+        }
+
+        // --- NORMAL LOAD ---
+        const nodesWithHandler = data.nodes.map(n => ({ ...n, data: { ...n.data, onChange: updateNodeData, setAsStartNode: setAsStartNode } }));
+        setNodes(nodesWithHandler);
+        setEdges(data.edges || []);
+        
+        // --- ISOLATION FIX: Revert to defaults if key is missing in JSON ---
+        setCarriers(data.carriers || DEFAULT_CARRIERS);
+        setResources(data.resources || DEFAULT_RESOURCES);
+        setQuoteSettings(data.quoteSettings || DEFAULT_QUOTE_SETTINGS);
+        
+        // Clear history so you don't see old chat
+        setHistory([]);
+        
+        // Reset Start Node
+        const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
+        if(start) setCurrentNodeId(start.id);
+
+      }).catch(err => {
+          console.error("Error loading flow:", err);
+          // ON ERROR: Force a reset
+          setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Error loading file. Resetting...', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
+          setEdges([]);
+          setHistory([]);
+      });
+  }
+
+  const handleSwitchFlow = (e) => {
+      const newFile = e.target.value;
+      if (newFile === "NEW") {
+          const name = prompt("Enter name for new Playbook (e.g., 'Home Insurance'):");
+          if (name) {
+              const safeName = name.toLowerCase().replace(/ /g, '_') + ".json";
+              // Update list immediately
+              setAvailableFlows(prev => [...prev, safeName]);
+              setCurrentFlowName(safeName);
+              
+              // --- HARD RESET FOR NEW FILE ---
+              setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
+              setEdges([]);
+              setCarriers(DEFAULT_CARRIERS);
+              setResources(DEFAULT_RESOURCES);
+              setQuoteSettings(DEFAULT_QUOTE_SETTINGS);
+              setHistory([]);
+              setCurrentNodeId('1');
+          }
+      } else {
+          // Switch existing
+          setCurrentFlowName(newFile);
+          loadFlowData(newFile);
+      }
+  };
 
   const saveToServer = () => {
     const cleanNodes = nodes.map(n => { const { onChange, setAsStartNode, ...rest } = n.data; return { ...n, data: rest }; });
     fetch(`${API_URL}/save`, { 
       method: 'POST', 
       headers: {'Content-Type': 'application/json'}, 
-      body: JSON.stringify({ nodes: cleanNodes, edges, carriers, quoteSettings, resources }) 
+      body: JSON.stringify({ 
+          filename: currentFlowName, // Send filename so backend knows where to save
+          nodes: cleanNodes, edges, carriers, quoteSettings, resources 
+        }) 
     }).then(res => res.json()).then(d => alert(d.message));
   };
 
@@ -402,12 +503,26 @@ export default function App() {
 
       <ResourceSidebar resources={resources} setResources={setResources} />
 
-      <div className="wizard-pane" style={{flex: 1, borderRight: showAdmin ? `1px solid ${BORDER}` : 'none', display:'flex', flexDirection:'column', background: 'white'}}>
+      <div className="wizard-pane" style={{
+          flex: showAdmin ? '0 0 30%' : '1', 
+          maxWidth: showAdmin ? '30%' : '100%',
+          borderRight: showAdmin ? `1px solid ${BORDER}` : 'none', 
+          display:'flex', flexDirection:'column', background: 'white'
+        }}>
         <div className="wizard-header" style={{borderBottom:`1px solid ${BORDER}`, padding:'15px 20px', display:'flex', alignItems:'center'}}>
           {/* REPLACED LOGO CIRCLE WITH IMAGE */}
           <img src={jerryLogo} alt="Jerry" style={{height:'30px', marginRight:'10px'}} />
-          <div style={{ fontWeight: '700', fontSize: '18px', color: SLATE }}>Sales Companion</div>
+          <div style={{ fontWeight: '700', fontSize: '18px', color: SLATE }}>Insurance Wizard</div>
           <div style={{ flexGrow: 1 }}></div>
+          
+          {/* AGENT PLAYBOOK SELECTOR (No "New" option) */}
+          <div style={{display:'flex', alignItems:'center', gap:'4px', marginRight:'12px'}}>
+              <FolderOpen size={16} color={SLATE} />
+              <select value={currentFlowName} onChange={(e) => { setCurrentFlowName(e.target.value); loadFlowData(e.target.value); }} style={{fontSize:'12px', padding:'4px', borderRadius:'4px', maxWidth:'120px', border:`1px solid ${BORDER}`}}>
+                  {availableFlows.map(f => <option key={f} value={f}>{f.replace('.json','')}</option>)}
+              </select>
+          </div>
+
           <button className="btn btn-secondary" onClick={() => setShowAdmin(!showAdmin)} style={{marginRight:'10px', color: showAdmin ? JERRY_PINK : '#999', borderColor: 'transparent'}}>
              {showAdmin ? <Unlock size={16}/> : <Lock size={16}/>}
           </button>
@@ -419,8 +534,8 @@ export default function App() {
             <div key={idx} style={{opacity:0.6, marginBottom:'20px'}}>
               <div className="bubble" style={{background: '#F3F4F6'}}>
                 <div className="bubble-label" style={{color: SLATE}}>{step.data.label}</div>
-                {step.type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE}}>{step.data.text}</div>}
-                {step.type === 'carrierNode' && step.carrierInfo && <div><div style={{fontWeight:'bold', color:JERRY_PINK}}>{step.carrierInfo.name} Selected</div><div className="formatted-text" style={{fontSize:'12px', marginTop:'4px'}}>{step.carrierInfo.script}</div></div>}
+                {step.type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE}} dangerouslySetInnerHTML={{__html: step.data.text}}></div>}
+                {step.type === 'carrierNode' && step.carrierInfo && <div><div style={{fontWeight:'bold', color:JERRY_PINK}}>{step.carrierInfo.name} Selected</div><div style={{fontSize:'12px'}} dangerouslySetInnerHTML={{__html: step.carrierInfo.script}}></div></div>}
                 {step.type === 'quoteNode' && <div style={{fontStyle:'italic', color:'#666'}}>Quote presented.</div>}
               </div>
             </div>
@@ -429,12 +544,12 @@ export default function App() {
           {getCurrentNode() && (
             <div className="bubble" style={{ borderLeft: `4px solid ${getCurrentNode().type === 'carrierNode' ? '#8b5cf6' : getCurrentNode().type === 'quoteNode' ? JERRY_PINK : '#E5090E'}`, background: JERRY_BG }}>
               <div className="bubble-label" style={{color: JERRY_PINK}}>{getCurrentNode().data.label}</div>
-              {getCurrentNode().type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE}}>{getCurrentNode().data.text}</div>}
+              {getCurrentNode().type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE}} dangerouslySetInnerHTML={{__html: getCurrentNode().data.text}}></div>}
               {getCurrentNode().type === 'carrierNode' && (
                 <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
                   <div className="bubble-text" style={{color: SLATE}}>Select carrier for instructions:</div>
                   <select style={{padding:'8px', borderRadius:'8px', border:`1px solid ${BORDER}`, fontSize:'14px'}} onChange={(e) => setSelectedCarrierId(e.target.value)} value={selectedCarrierId || ""}><option value="" disabled>-- Choose Carrier --</option>{Object.values(carriers).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                  {selectedCarrierId && carriers[selectedCarrierId] && <div style={{background:'white', padding:'10px', borderRadius:'8px', border:`1px solid ${BORDER}`}}><div style={{fontWeight:'bold', color:JERRY_PINK, marginBottom:'6px'}}>{carriers[selectedCarrierId].name}</div><div className="formatted-text" style={{marginTop:'8px', fontSize:'13px', color:SLATE}}>{carriers[selectedCarrierId].script}</div></div>}
+                  {selectedCarrierId && carriers[selectedCarrierId] && <div style={{background:'white', padding:'10px', borderRadius:'8px', border:`1px solid ${BORDER}`}}><div style={{fontWeight:'bold', color:JERRY_PINK, marginBottom:'6px'}}>{carriers[selectedCarrierId].name}</div><div style={{fontSize:'13px', color:SLATE}} dangerouslySetInnerHTML={{__html: carriers[selectedCarrierId].script}}></div></div>}
                 </div>
               )}
               {getCurrentNode().type === 'quoteNode' && (<QuoteBuilderForm closingQuestion={getCurrentNode().data.closingQuestion} settings={quoteSettings} carriers={carriers} />)}
@@ -451,9 +566,20 @@ export default function App() {
       </div>
 
       {showAdmin && (
-        <div className="editor-pane" style={{width: '30%', minWidth: '350px', display:'flex', flexDirection:'column', background:'#f0f2f5', borderLeft:`1px solid ${BORDER}`}}>
+        <div className="editor-pane" style={{width: '70%', minWidth: '350px', display:'flex', flexDirection:'column', background:'#f0f2f5', borderLeft:`1px solid ${BORDER}`}}>
           <div className="editor-toolbar" style={{display:'flex', gap:'8px', padding:'10px', background:'#fff', borderBottom:`1px solid ${BORDER}`}}>
             <button className="btn btn-primary" onClick={saveToServer} style={{background: JERRY_PINK, border:'none'}}><Save size={16}/></button>
+            <div style={{width:'1px', height:'20px', background: BORDER, margin:'0 4px'}}></div>
+            
+            {/* --- ADMIN PLAYBOOK SELECTOR --- */}
+            <div style={{display:'flex', alignItems:'center', gap:'4px', marginRight:'8px'}}>
+                <FolderOpen size={16} color={SLATE} />
+                <select value={currentFlowName} onChange={handleSwitchFlow} style={{fontSize:'12px', padding:'4px', borderRadius:'4px', maxWidth:'120px'}}>
+                    {availableFlows.map(f => <option key={f} value={f}>{f.replace('.json','')}</option>)}
+                    <option value="NEW">+ New Playbook...</option>
+                </select>
+            </div>
+
             <div style={{width:'1px', height:'20px', background: BORDER, margin:'0 4px'}}></div>
             <button className="btn btn-secondary" onClick={() => setSettingsModalOpen(true)} title="Config"><Settings size={16}/></button>
             <button className="btn btn-secondary" onClick={() => setCarrierModalOpen(true)} title="Carriers"><Building2 size={16}/></button>
