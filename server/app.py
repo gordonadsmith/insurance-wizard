@@ -1,71 +1,149 @@
 import os
 import json
-import glob
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 
-app = Flask(__name__, static_folder='build', static_url_path='')
+app = Flask(__name__, static_folder='build')
 CORS(app)
 
-# --- ROUTES ---
+# --- CONFIGURATION ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FLOWS_DIR = os.path.join(BASE_DIR, 'flows')
+
+# 1. Ensure storage directory exists
+if not os.path.exists(FLOWS_DIR):
+    os.makedirs(FLOWS_DIR)
+
+# 2. CRITICAL FIX: Ensure 'default_flow.json' actually exists on disk
+default_file_path = os.path.join(FLOWS_DIR, 'default_flow.json')
+if not os.path.exists(default_file_path):
+    print("Creating default_flow.json...")
+    with open(default_file_path, 'w') as f:
+        # Create a basic valid JSON structure
+        initial_data = {
+            "nodes": [
+                {
+                    "id": "1", 
+                    "type": "scriptNode", 
+                    "position": {"x": 250, "y": 150}, 
+                    "data": {"label": "Start", "text": "Welcome to the Insurance Wizard", "isStart": True}
+                }
+            ],
+            "edges": [],
+            "carriers": {},
+            "resources": []
+        }
+        json.dump(initial_data, f, indent=2)
+
+print(f"Server ready. Flows directory: {FLOWS_DIR}")
 
 @app.route('/api/flows', methods=['GET'])
-def list_flows():
-    """Returns a list of all saved playbook JSON files."""
-    files = glob.glob("*.json")
-    # Filter out package-lock or other config files if they exist accidentally
-    playbooks = [f for f in files if f not in ['package.json', 'package-lock.json', 'tsconfig.json']]
-    return jsonify(playbooks)
-
-@app.route('/api/save', methods=['POST'])
-def save_flow():
+def get_flows():
     try:
-        data = request.json
-        filename = data.get('filename', 'default_flow.json')
-        
-        # Ensure filename ends in .json
-        if not filename.endswith('.json'):
-            filename += '.json'
-            
-        # Remove filename from data before saving to keep file clean
-        if 'filename' in data:
-            del data['filename']
-
-        with open(filename, 'w') as f:
-            json.dump(data, f)
-        
-        return jsonify({"message": f"Saved to {filename}!"}), 200
+        files = [f for f in os.listdir(FLOWS_DIR) if f.endswith('.json')]
+        return jsonify(files)
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify([])
 
 @app.route('/api/load', methods=['GET'])
 def load_flow():
     filename = request.args.get('filename', 'default_flow.json')
+    filename = os.path.basename(filename)
     
-    if not os.path.exists(filename):
-        # Return empty structure if file doesn't exist yet
-        return jsonify({"nodes": [], "edges": [], "carriers": {}, "quoteSettings": {}}), 200
+    filepath = os.path.join(FLOWS_DIR, filename)
+    
+    # Fallback: Try adding .json if missing
+    if not os.path.exists(filepath) and not filename.endswith('.json'):
+        filepath += '.json'
+
+    if os.path.exists(filepath):
+        with open(filepath, 'r') as f:
+            return f.read()
+    return jsonify({}) 
+
+@app.route('/api/save', methods=['POST'])
+def save_flow():
+    data = request.json
+    filename = data.get('filename', 'default_flow.json')
+    filename = os.path.basename(filename)
+
+    if not filename.endswith('.json'):
+        filename += '.json'
+
+    filepath = os.path.join(FLOWS_DIR, filename)
+    with open(filepath, 'w') as f:
+        json.dump(data, f, indent=2)
+    
+    return jsonify({"message": "Saved successfully!"})
+
+@app.route('/api/rename_flow', methods=['POST'])
+def rename_flow():
+    data = request.json
+    old_name = data.get('oldFilename')
+    new_name = data.get('newFilename')
+
+    if not old_name or not new_name:
+        return jsonify({"message": "Missing filenames"}), 400
+    
+    old_name = os.path.basename(old_name)
+    new_name = os.path.basename(new_name)
+
+    if not new_name.endswith('.json'):
+        new_name += '.json'
+
+    old_path = os.path.join(FLOWS_DIR, old_name)
+    
+    # Auto-fix extension for old file search
+    if not os.path.exists(old_path) and not old_name.endswith('.json'):
+        old_path += '.json'
+
+    new_path = os.path.join(FLOWS_DIR, new_name)
+
+    if not os.path.exists(old_path):
+        # Create it if it's missing (Ghost file fix)
+        with open(old_path, 'w') as f:
+            json.dump({"nodes": []}, f)
+            
+    if os.path.exists(new_path):
+        return jsonify({"message": "A playbook with that name already exists"}), 409
+
     try:
-        with open(filename, 'r') as f:
-            data = json.load(f)
-        return jsonify(data), 200
+        os.rename(old_path, new_path)
+        return jsonify({"message": "Renamed successfully", "newFilename": new_name})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"message": str(e)}), 500
 
-# --- SERVE FRONTEND ---
+@app.route('/api/delete_flow', methods=['POST'])
+def delete_flow():
+    data = request.json
+    filename = data.get('filename')
 
-@app.route('/')
-def serve():
-    if os.path.exists(os.path.join(app.static_folder, 'index.html')):
-        return send_from_directory(app.static_folder, 'index.html')
-    else:
-        return "Frontend build not found. Please run 'npm run build'", 404
+    if not filename:
+        return jsonify({"message": "Missing filename"}), 400
 
+    filename = os.path.basename(filename)
+    filepath = os.path.join(FLOWS_DIR, filename)
+
+    if not os.path.exists(filepath) and not filename.endswith('.json'):
+        filepath += '.json'
+
+    if not os.path.exists(filepath):
+        return jsonify({"message": f"File not found: {filename}"}), 404
+
+    try:
+        os.remove(filepath)
+        return jsonify({"message": "Deleted successfully"})
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
+
+# Serve React App
+@app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
-def static_proxy(path):
-    if os.path.exists(os.path.join(app.static_folder, path)):
+def serve(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
-    return send_from_directory(app.static_folder, 'index.html')
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))

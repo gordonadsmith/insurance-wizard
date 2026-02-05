@@ -1,0 +1,20 @@
+{
+  "nodes": [
+    {
+      "id": "1",
+      "type": "scriptNode",
+      "position": {
+        "x": 250,
+        "y": 150
+      },
+      "data": {
+        "label": "Start",
+        "text": "Welcome to the Insurance Wizard",
+        "isStart": true
+      }
+    }
+  ],
+  "edges": [],
+  "carriers": {},
+  "resources": []
+}

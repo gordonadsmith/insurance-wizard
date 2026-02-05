@@ -6,7 +6,7 @@ import 'reactflow/dist/style.css';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';   
 import 'react-quill-new/dist/quill.bubble.css'; 
-import { Plus, RefreshCw, ChevronRight, Trash2, Save, Building2, X, DollarSign, Settings, CheckSquare, Copy, Layers, Lock, Unlock, Flag, BookOpen, Link as LinkIcon, FileText, Edit, FolderOpen, ClipboardCheck } from 'lucide-react';
+import { Plus, RefreshCw, ChevronRight, Trash2, Save, Building2, X, DollarSign, Settings, CheckSquare, Copy, Layers, Lock, Unlock, Flag, BookOpen, Link as LinkIcon, FileText, Edit, FolderOpen, ClipboardCheck, FolderCog, Pencil } from 'lucide-react';
 import './App.css';
 
 // --- ASSETS ---
@@ -211,6 +211,88 @@ const ResourceManager = ({ isOpen, onClose, resources, setResources }) => {
   );
 };
 
+// --- COMPONENT: Playbook Manager ---
+const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, currentFlowName, setCurrentFlowName, loadFlowData }) => {
+    const [renamingId, setRenamingId] = useState(null);
+    const [newName, setNewName] = useState("");
+
+    if (!isOpen) return null;
+
+    const handleRename = (oldName) => {
+        const safeNewName = newName.trim();
+        if(!safeNewName) return;
+        
+        fetch(`${API_URL}/rename_flow`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ oldFilename: oldName, newFilename: safeNewName })
+        }).then(res => res.json()).then(data => {
+            if(data.message.includes("success")) {
+                refreshList();
+                if(currentFlowName === oldName) {
+                    setCurrentFlowName(data.newFilename);
+                }
+                setRenamingId(null);
+                setNewName("");
+            } else {
+                alert(data.message);
+            }
+        });
+    };
+
+    const handleDelete = (filename) => {
+        if(!window.confirm(`Are you sure you want to delete "${filename}"? This cannot be undone.`)) return;
+        
+        fetch(`${API_URL}/delete_flow`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ filename })
+        }).then(res => res.json()).then(data => {
+            if(data.message.includes("success")) {
+                refreshList();
+                if(currentFlowName === filename) {
+                    // If we deleted the active flow, reload the page or switch to default
+                    window.location.reload(); 
+                }
+            } else {
+                alert(data.message);
+            }
+        });
+    };
+
+    return (
+        <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:1300, display:'flex', alignItems:'center', justifyContent:'center'}}>
+            <div style={{background:'white', width:'500px', borderRadius:'16px', padding:'20px', boxShadow:'0 20px 50px rgba(0,0,0,0.2)'}}>
+                <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', borderBottom:`1px solid ${BORDER}`, paddingBottom:'10px'}}>
+                    <h3 style={{margin:0, display:'flex', alignItems:'center', gap:'8px'}}><FolderCog size={20} color={SLATE}/> Manage Playbooks</h3>
+                    <button onClick={onClose} style={{border:'none', background:'none', cursor:'pointer'}}><X size={20}/></button>
+                </div>
+                <div style={{display:'flex', flexDirection:'column', gap:'10px', maxHeight:'400px', overflowY:'auto'}}>
+                    {availableFlows.map(flow => (
+                        <div key={flow} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px', background:'#f9fafb', borderRadius:'8px', border:`1px solid ${BORDER}`}}>
+                            {renamingId === flow ? (
+                                <div style={{display:'flex', gap:'8px', flexGrow:1}}>
+                                    <input autoFocus value={newName} onChange={e => setNewName(e.target.value)} style={{flexGrow:1, padding:'4px', borderRadius:'4px', border:`1px solid ${JERRY_PINK}`}} placeholder="New Name"/>
+                                    <button onClick={() => handleRename(flow)} style={{background:JERRY_PINK, color:'white', border:'none', borderRadius:'4px', padding:'4px 8px', fontSize:'12px', cursor:'pointer'}}>Save</button>
+                                    <button onClick={() => setRenamingId(null)} style={{background:'#ccc', color:'white', border:'none', borderRadius:'4px', padding:'4px 8px', fontSize:'12px', cursor:'pointer'}}>Cancel</button>
+                                </div>
+                            ) : (
+                                <>
+                                    <div style={{fontWeight: currentFlowName === flow ? 'bold' : 'normal', color: currentFlowName === flow ? JERRY_PINK : SLATE}}>{flow.replace('.json','')}</div>
+                                    <div style={{display:'flex', gap:'8px'}}>
+                                        <button onClick={() => { setRenamingId(flow); setNewName(flow.replace('.json','')); }} title="Rename" style={{border:'none', background:'white', cursor:'pointer', padding:'4px', borderRadius:'4px', border:`1px solid ${BORDER}`}}><Pencil size={14} color={SLATE}/></button>
+                                        <button onClick={() => handleDelete(flow)} title="Delete" style={{border:'none', background:'white', cursor:'pointer', padding:'4px', borderRadius:'4px', border:`1px solid ${BORDER}`}}><Trash2 size={14} color="red"/></button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ResourceSidebar = ({ resources, setResources }) => {
   const [expanded, setExpanded] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
@@ -360,6 +442,7 @@ export default function App() {
   // UI State
   const [isCarrierModalOpen, setCarrierModalOpen] = useState(false);
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [isPlaybookManagerOpen, setPlaybookManagerOpen] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [resources, setResources] = useState(DEFAULT_RESOURCES);
 
@@ -387,11 +470,15 @@ export default function App() {
   }, [setNodes]);
 
   // Load list of flows AND current flow
-  useEffect(() => {
+  const refreshFlows = () => {
     fetch(`${API_URL}/flows`).then(res => res.json()).then(files => {
         if(files.length === 0) setAvailableFlows(["default_flow.json"]);
         else setAvailableFlows(files);
     }).catch(() => setAvailableFlows(["default_flow.json"]));
+  };
+
+  useEffect(() => {
+    refreshFlows();
     loadFlowData(currentFlowName);
   }, []);
 
@@ -602,6 +689,15 @@ export default function App() {
     <div className="app-container" style={{display:'flex', width:'100vw', height:'100vh', overflow:'hidden', fontFamily:'Inter, sans-serif'}}>
       <CarrierManager isOpen={isCarrierModalOpen} onClose={() => setCarrierModalOpen(false)} carriers={carriers} setCarriers={setCarriers} />
       <SettingsManager isOpen={isSettingsModalOpen} onClose={() => setSettingsModalOpen(false)} settings={quoteSettings} setSettings={setQuoteSettings} />
+      <PlaybookManager 
+        isOpen={isPlaybookManagerOpen} 
+        onClose={() => setPlaybookManagerOpen(false)} 
+        availableFlows={availableFlows} 
+        refreshList={refreshFlows}
+        currentFlowName={currentFlowName}
+        setCurrentFlowName={setCurrentFlowName}
+        loadFlowData={loadFlowData}
+      />
 
       <ResourceSidebar resources={resources} setResources={setResources} />
 
@@ -618,7 +714,7 @@ export default function App() {
           
           <div style={{display:'flex', alignItems:'center', gap:'4px', marginRight:'12px'}}>
               <FolderOpen size={16} color={SLATE} />
-              <select value={currentFlowName} onChange={(e) => { setCurrentFlowName(e.target.value); loadFlowData(e.target.value); }} style={{fontSize:'12px', padding:'4px', borderRadius:'4px', maxWidth:'120px', border:`1px solid ${BORDER}`}}>
+              <select value={currentFlowName} onChange={handleSwitchFlow} style={{fontSize:'12px', padding:'4px', borderRadius:'4px', maxWidth:'120px', border:`1px solid ${BORDER}`}}>
                   {availableFlows.map(f => <option key={f} value={f}>{f.replace('.json','')}</option>)}
               </select>
           </div>
@@ -701,6 +797,7 @@ export default function App() {
                     {availableFlows.map(f => <option key={f} value={f}>{f.replace('.json','')}</option>)}
                     <option value="NEW">+ New Playbook...</option>
                 </select>
+                <button onClick={() => setPlaybookManagerOpen(true)} title="Manage Playbooks" style={{border:'none', background:'none', cursor:'pointer', padding:'4px'}}><FolderCog size={16} color={SLATE}/></button>
             </div>
 
             <div style={{width:'1px', height:'20px', background: BORDER, margin:'0 4px'}}></div>
