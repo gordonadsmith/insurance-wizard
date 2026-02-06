@@ -369,6 +369,61 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
         }
     };
 
+    const handleCopy = (filename) => {
+        const baseName = filename.replace('.json', '');
+        const copyName = prompt(`Enter name for the copy of "${baseName}":`, `${baseName} (Copy)`);
+        
+        if (!copyName || copyName.trim() === '') return;
+        
+        let safeCopyName = copyName.trim();
+        if (!safeCopyName.endsWith('.json')) {
+            safeCopyName = safeCopyName + '.json';
+        }
+        
+        if (USE_LOCAL_STORAGE) {
+            // Use localStorage for testing
+            const originalData = localStorage.getItem(`insurance-wizard-${filename}`);
+            
+            if (originalData) {
+                // Save copy with new name
+                localStorage.setItem(`insurance-wizard-${safeCopyName}`, originalData);
+                
+                // Update flows list
+                const flows = JSON.parse(localStorage.getItem('insurance-wizard-flows') || '[]');
+                if (!flows.includes(safeCopyName)) {
+                    flows.push(safeCopyName);
+                    localStorage.setItem('insurance-wizard-flows', JSON.stringify(flows));
+                }
+                
+                refreshList();
+                // Switch to the new copy
+                setCurrentFlowName(safeCopyName);
+                loadFlowData(safeCopyName);
+                onClose();
+            } else {
+                alert('Could not find the original playbook to copy.');
+            }
+        } else {
+            // Use API for production
+            fetch(`${API_URL}/copy_flow`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ sourceFilename: filename, newFilename: safeCopyName })
+            }).then(res => res.json()).then(data => {
+                if(data.message && data.message.includes("success")) {
+                    refreshList();
+                    setCurrentFlowName(safeCopyName);
+                    loadFlowData(safeCopyName);
+                    onClose();
+                } else {
+                    alert(data.message || 'Error copying playbook');
+                }
+            }).catch(err => {
+                alert('Error copying playbook');
+            });
+        }
+    };
+
     return (
         <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:1300, display:'flex', alignItems:'center', justifyContent:'center'}}>
             <div style={{background:'white', width:'500px', borderRadius:'16px', padding:'20px', boxShadow:'0 20px 50px rgba(0,0,0,0.2)'}}>
@@ -389,6 +444,7 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
                                 <>
                                     <div style={{fontWeight: currentFlowName === flow ? 'bold' : 'normal', color: currentFlowName === flow ? JERRY_PINK : SLATE}}>{flow.replace('.json','')}</div>
                                     <div style={{display:'flex', gap:'8px'}}>
+                                        <button onClick={() => handleCopy(flow)} title="Copy/Duplicate" style={{border:'none', background:'white', cursor:'pointer', padding:'4px', borderRadius:'4px', border:`1px solid ${BORDER}`}}><Copy size={14} color={SLATE}/></button>
                                         <button onClick={() => { setRenamingId(flow); setNewName(flow.replace('.json','')); }} title="Rename" style={{border:'none', background:'white', cursor:'pointer', padding:'4px', borderRadius:'4px', border:`1px solid ${BORDER}`}}><Pencil size={14} color={SLATE}/></button>
                                         <button onClick={() => handleDelete(flow)} title="Delete" style={{border:'none', background:'white', cursor:'pointer', padding:'4px', borderRadius:'4px', border:`1px solid ${BORDER}`}}><Trash2 size={14} color="red"/></button>
                                     </div>
@@ -695,6 +751,55 @@ export default function App() {
       }
   };
 
+  const duplicateCurrentPlaybook = () => {
+    const baseName = currentFlowName.replace('.json', '');
+    const copyName = prompt(`Enter name for duplicate of "${baseName}":`, `${baseName} (Copy)`);
+    
+    if (!copyName || copyName.trim() === '') return;
+    
+    let safeCopyName = copyName.trim();
+    if (!safeCopyName.endsWith('.json')) {
+        safeCopyName = safeCopyName + '.json';
+    }
+    
+    // Save the current playbook first
+    saveToServer();
+    
+    // Then duplicate it
+    if (USE_LOCAL_STORAGE) {
+        const originalData = localStorage.getItem(`insurance-wizard-${currentFlowName}`);
+        
+        if (originalData) {
+            localStorage.setItem(`insurance-wizard-${safeCopyName}`, originalData);
+            
+            const flows = JSON.parse(localStorage.getItem('insurance-wizard-flows') || '[]');
+            if (!flows.includes(safeCopyName)) {
+                flows.push(safeCopyName);
+                localStorage.setItem('insurance-wizard-flows', JSON.stringify(flows));
+                setAvailableFlows(flows);
+            }
+            
+            setCurrentFlowName(safeCopyName);
+            loadFlowData(safeCopyName);
+            alert(`Playbook duplicated as "${safeCopyName.replace('.json', '')}"!`);
+        }
+    } else {
+        // API version
+        fetch(`${API_URL}/copy_flow`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ sourceFilename: currentFlowName, newFilename: safeCopyName })
+        }).then(res => res.json()).then(data => {
+            if(data.message && data.message.includes("success")) {
+                refreshFlows();
+                setCurrentFlowName(safeCopyName);
+                loadFlowData(safeCopyName);
+                alert(`Playbook duplicated as "${safeCopyName.replace('.json', '')}"!`);
+            }
+        });
+    }
+  };
+
   const saveToServer = () => {
     const cleanNodes = nodes.map(n => { const { onChange, setAsStartNode, ...rest } = n.data; return { ...n, data: rest }; });
     const dataToSave = {
@@ -973,6 +1078,7 @@ export default function App() {
                     {availableFlows.map(f => <option key={f} value={f}>{f.replace('.json','')}</option>)}
                     <option value="NEW">+ New Playbook...</option>
                 </select>
+                <button onClick={duplicateCurrentPlaybook} title="Duplicate Current Playbook" style={{border:'none', background:'none', cursor:'pointer', padding:'4px'}}><Copy size={16} color={SLATE}/></button>
                 <button onClick={() => setPlaybookManagerOpen(true)} title="Manage Playbooks" style={{border:'none', background:'none', cursor:'pointer', padding:'4px'}}><FolderCog size={16} color={SLATE}/></button>
             </div>
 
