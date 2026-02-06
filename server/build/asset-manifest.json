@@ -1,14 +1,14 @@
 {
   "files": {
     "main.css": "/static/css/main.93a52eec.css",
-    "main.js": "/static/js/main.1522cd15.js",
+    "main.js": "/static/js/main.e11adc75.js",
     "static/media/jerry_logo.png": "/static/media/jerry_logo.06577793bdf8488d0842.png",
     "index.html": "/index.html",
     "main.93a52eec.css.map": "/static/css/main.93a52eec.css.map",
-    "main.1522cd15.js.map": "/static/js/main.1522cd15.js.map"
+    "main.e11adc75.js.map": "/static/js/main.e11adc75.js.map"
   },
   "entrypoints": [
     "static/css/main.93a52eec.css",
-    "static/js/main.1522cd15.js"
+    "static/js/main.e11adc75.js"
   ]
 }

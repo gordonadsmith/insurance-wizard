@@ -1489,7 +1489,20 @@ export default function App() {
   const addMadLibsNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'madLibsNode', position: {x:250, y:150}, data: {label:'Word Track', template:'', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
   const addChecklistNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'checklistNode', position: {x:250, y:150}, data: {label:'Compliance Check', items:'Did you disclose the TCPA? (yes/no)\nDid you verify date of birth?', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
   
-  const deleteSelected = useCallback(() => { setNodes((nds) => nds.filter((n) => !n.selected)); setEdges((eds) => eds.filter((e) => !e.selected)); }, [setNodes, setEdges]);
+  const deleteSelected = useCallback(() => { 
+    // Get IDs of nodes being deleted
+    const deletedNodeIds = nodes.filter(n => n.selected).map(n => n.id);
+    
+    // Remove selected nodes
+    setNodes((nds) => nds.filter((n) => !n.selected)); 
+    
+    // Remove selected edges AND any edges connected to deleted nodes
+    setEdges((eds) => eds.filter((e) => 
+      !e.selected && 
+      !deletedNodeIds.includes(e.source) && 
+      !deletedNodeIds.includes(e.target)
+    )); 
+  }, [nodes, setNodes, setEdges]);
   const getCurrentNode = () => nodes.find(n => n.id === currentNodeId);
   const getOptions = () => edges.filter(e => e.source === currentNodeId).map(e => ({ label: e.label || "Next", targetId: e.target }));
 
