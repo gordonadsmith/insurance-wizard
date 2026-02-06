@@ -55,8 +55,19 @@ const cleanHTML = (html) => {
 
 // --- DEFAULTS ---
 const DEFAULT_CARRIERS = {
-  "1": { id: "1", name: "Progressive", script: "<p>Verify garaging address matches license.</p><p><strong>Phone:</strong> 1-800-776-4737</p>" },
+  "1": { 
+    id: "1", 
+    name: "Progressive", 
+    scripts: {
+      "Quote": "<p><strong>Quote Process:</strong></p><p>Verify garaging address matches license.</p><p><strong>Phone:</strong> 1-800-776-4737</p>",
+      "Sale": "<p><strong>Sale Process:</strong></p><p>Confirm down payment and start date.</p><p><strong>Phone:</strong> 1-800-776-4737</p>",
+      "Billing": "<p><strong>Billing Support:</strong></p><p>Verify payment method on file.</p><p><strong>Phone:</strong> 1-800-776-4737</p>"
+    }
+  },
 };
+
+// Default call type options (can be customized per playbook)
+const DEFAULT_CALL_TYPES = ["Quote", "Sale", "Billing", "Service", "Claims", "Other"];
 
 const DEFAULT_RESOURCES = [
   { id: '1', title: 'Callback Script', type: 'text', content: '<p>Hi, this is [Name] from Jerry.</p><p>I was working on your quote...</p>' },
@@ -458,35 +469,218 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
     );
 };
 
+// --- COMPONENT: Call Types Manager ---
+const CallTypesManager = ({ isOpen, onClose, callTypes, setCallTypes }) => {
+  const [localCallTypes, setLocalCallTypes] = useState(callTypes);
+  const [newTypeName, setNewTypeName] = useState("");
+  
+  useEffect(() => { setLocalCallTypes(callTypes); }, [callTypes]);
+  
+  if (!isOpen) return null;
+
+  const handleAdd = () => {
+    const trimmed = newTypeName.trim();
+    if (!trimmed) {
+      alert("Please enter a call type name");
+      return;
+    }
+    if (localCallTypes.includes(trimmed)) {
+      alert("This call type already exists");
+      return;
+    }
+    setLocalCallTypes([...localCallTypes, trimmed]);
+    setNewTypeName("");
+  };
+
+  const handleRemove = (type) => {
+    if (localCallTypes.length <= 1) {
+      alert("You must have at least one call type");
+      return;
+    }
+    if (window.confirm(`Remove "${type}"? This will delete all carrier scripts for this call type.`)) {
+      setLocalCallTypes(localCallTypes.filter(t => t !== type));
+    }
+  };
+
+  const handleSave = () => {
+    setCallTypes(localCallTypes);
+    alert("Call types saved! Note: Carriers will need scripts updated for new types.");
+    onClose();
+  };
+
+  const moveUp = (index) => {
+    if (index === 0) return;
+    const newList = [...localCallTypes];
+    [newList[index - 1], newList[index]] = [newList[index], newList[index - 1]];
+    setLocalCallTypes(newList);
+  };
+
+  const moveDown = (index) => {
+    if (index === localCallTypes.length - 1) return;
+    const newList = [...localCallTypes];
+    [newList[index], newList[index + 1]] = [newList[index + 1], newList[index]];
+    setLocalCallTypes(newList);
+  };
+
+  return (
+    <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center'}}>
+      <div style={{background:'white', width:'500px', borderRadius:'16px', padding:'20px', boxShadow:'0 20px 50px rgba(0,0,0,0.2)', maxHeight:'80vh', display:'flex', flexDirection:'column'}}>
+        <div style={{display:'flex', justifyContent:'space-between', marginBottom:'15px', borderBottom:`1px solid ${BORDER}`, paddingBottom:'10px'}}>
+          <h3 style={{margin:0, display:'flex', alignItems:'center', gap:'8px'}}><Settings size={20} color={SLATE}/> Manage Call Types</h3>
+          <button onClick={onClose} style={{border:'none', background:'none', cursor:'pointer'}}><X size={20}/></button>
+        </div>
+
+        <div style={{fontSize:'13px', color:'#666', marginBottom:'15px', padding:'10px', background:'#f9fafb', borderRadius:'6px'}}>
+          Call types determine what scripts show for each carrier. Add types relevant to your business (e.g., "Renewal", "Cancellation", "Policy Change").
+        </div>
+
+        <div style={{marginBottom:'15px'}}>
+          <label style={{fontSize:'12px', fontWeight:'bold', color:'#999', display:'block', marginBottom:'8px'}}>ADD NEW CALL TYPE</label>
+          <div style={{display:'flex', gap:'8px'}}>
+            <input 
+              value={newTypeName} 
+              onChange={e => setNewTypeName(e.target.value)}
+              onKeyPress={e => e.key === 'Enter' && handleAdd()}
+              placeholder="e.g., Renewal, Cancellation..."
+              style={{flexGrow:1, padding:'8px', border:`1px solid ${BORDER}`, borderRadius:'6px'}}
+            />
+            <button onClick={handleAdd} className="btn-primary" style={{background:JERRY_PINK, border:'none'}}>+ Add</button>
+          </div>
+        </div>
+
+        <div style={{flexGrow:1, overflowY:'auto', marginBottom:'15px'}}>
+          <label style={{fontSize:'12px', fontWeight:'bold', color:'#999', display:'block', marginBottom:'8px'}}>CURRENT CALL TYPES</label>
+          <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
+            {localCallTypes.map((type, index) => (
+              <div key={type} style={{display:'flex', alignItems:'center', gap:'8px', padding:'10px', background:'#f9fafb', borderRadius:'6px', border:`1px solid ${BORDER}`}}>
+                <div style={{flexGrow:1, fontWeight:'500'}}>{type}</div>
+                <button onClick={() => moveUp(index)} disabled={index === 0} title="Move Up" style={{border:'none', background:'white', cursor:index === 0 ? 'not-allowed' : 'pointer', padding:'4px', borderRadius:'4px', opacity: index === 0 ? 0.3 : 1}}>↑</button>
+                <button onClick={() => moveDown(index)} disabled={index === localCallTypes.length - 1} title="Move Down" style={{border:'none', background:'white', cursor:index === localCallTypes.length - 1 ? 'not-allowed' : 'pointer', padding:'4px', borderRadius:'4px', opacity: index === localCallTypes.length - 1 ? 0.3 : 1}}>↓</button>
+                <button onClick={() => handleRemove(type)} title="Delete" style={{border:'none', background:'white', cursor:'pointer', padding:'4px', borderRadius:'4px', color:'red'}}><Trash2 size={14}/></button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{display:'flex', justifyContent:'flex-end', gap:'10px', paddingTop:'15px', borderTop:`1px solid ${BORDER}`}}>
+          <button onClick={onClose} className="btn-secondary">Cancel</button>
+          <button onClick={handleSave} className="btn-primary" style={{background:JERRY_PINK, border:'none'}}>Save Call Types</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- COMPONENT: Carrier Manager ---
-const CarrierManager = ({ isOpen, onClose, carriers, setCarriers }) => {
+const CarrierManager = ({ isOpen, onClose, carriers, setCarriers, callTypes }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [activeCallType, setActiveCallType] = useState("Quote");
+  
   if (!isOpen) return null;
-  const handleSelect = (id) => { setSelectedId(id); setEditForm({ ...carriers[id] }); };
-  const handleSave = () => { setCarriers(prev => ({ ...prev, [editForm.id]: editForm })); setSelectedId(null); };
-  const handleDelete = () => { if(window.confirm("Delete?")) { const n = { ...carriers }; delete n[selectedId]; setCarriers(n); setSelectedId(null); }};
-  const handleAdd = () => { const id = Date.now().toString(); const n = { id, name: "New Carrier", script: "" }; setCarriers(prev => ({ ...prev, [id]: n })); setSelectedId(id); setEditForm(n); };
+  
+  const handleSelect = (id) => { 
+    setSelectedId(id); 
+    const carrier = carriers[id];
+    // Ensure scripts object exists with all call types
+    if (!carrier.scripts) {
+      carrier.scripts = {};
+      callTypes.forEach(type => {
+        carrier.scripts[type] = carrier.script || ""; // Migrate old format
+      });
+    }
+    setEditForm({ ...carrier }); 
+  };
+  
+  const handleSave = () => { 
+    setCarriers(prev => ({ ...prev, [editForm.id]: editForm })); 
+    setSelectedId(null); 
+  };
+  
+  const handleDelete = () => { 
+    if(window.confirm("Delete?")) { 
+      const n = { ...carriers }; 
+      delete n[selectedId]; 
+      setCarriers(n); 
+      setSelectedId(null); 
+    }
+  };
+  
+  const handleAdd = () => { 
+    const id = Date.now().toString(); 
+    const scripts = {};
+    callTypes.forEach(type => { scripts[type] = ""; });
+    const n = { id, name: "New Carrier", scripts }; 
+    setCarriers(prev => ({ ...prev, [id]: n })); 
+    setSelectedId(id); 
+    setEditForm(n); 
+  };
+  
+  const updateScriptForCallType = (callType, value) => {
+    setEditForm(prev => ({
+      ...prev,
+      scripts: {
+        ...prev.scripts,
+        [callType]: value
+      }
+    }));
+  };
 
   return (
     <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center'}}>
-      <div style={{background:'white', width:'600px', height:'600px', borderRadius:'16px', display:'flex', flexDirection:'column', boxShadow:'0 20px 50px rgba(0,0,0,0.2)'}}>
+      <div style={{background:'white', width:'700px', height:'650px', borderRadius:'16px', display:'flex', flexDirection:'column', boxShadow:'0 20px 50px rgba(0,0,0,0.2)'}}>
         <div style={{padding:'20px', borderBottom:`1px solid ${BORDER}`, display:'flex', justifyContent:'space-between'}}><h2 style={{margin:0, fontSize:'18px'}}>Manage Carriers</h2><button onClick={onClose} style={{border:'none', background:'none'}}><X size={24}/></button></div>
         <div style={{flexGrow:1, display:'flex', overflow:'hidden'}}>
           <div style={{width:'200px', borderRight:`1px solid ${BORDER}`, padding:'10px', background:'#f9fafb', overflowY:'auto'}}><button onClick={handleAdd} className="btn-primary" style={{width:'100%', marginBottom:'10px', background: JERRY_PINK, border:'none'}}>+ Add New</button>{Object.values(carriers).map(c => <div key={c.id} onClick={() => handleSelect(c.id)} style={{padding:'10px', cursor:'pointer', fontWeight: selectedId === c.id ? 'bold' : 'normal', color: selectedId === c.id ? JERRY_PINK : SLATE}}>{c.name}</div>)}</div>
           <div style={{flexGrow:1, padding:'20px', overflowY:'auto', display:'flex', flexDirection:'column'}}>
             {selectedId && editForm ? (
                 <div style={{display:'flex', flexDirection:'column', gap:'15px', height:'100%'}}>
-                    <input className="node-input-text" style={{background:'white', border:`1px solid ${BORDER}`, width:'100%'}} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} placeholder="Carrier Name"/>
-                    <div style={{flexGrow:1}}>
-                        <ReactQuill theme="snow" value={editForm.script} onChange={(val) => setEditForm({...editForm, script: val})} style={{height:'300px'}}/>
+                    <input className="node-input-text" style={{background:'white', border:`1px solid ${BORDER}`, width:'100%', fontSize:'14px', fontWeight:'bold'}} value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} placeholder="Carrier Name"/>
+                    
+                    <div style={{fontSize:'12px', fontWeight:'bold', color:'#999', marginTop:'10px'}}>CALL TYPE SCRIPTS:</div>
+                    
+                    {/* Call Type Tabs */}
+                    <div style={{display:'flex', gap:'4px', borderBottom:`2px solid ${BORDER}`, paddingBottom:'0', flexWrap:'wrap'}}>
+                      {callTypes.map(type => (
+                        <button 
+                          key={type}
+                          onClick={() => setActiveCallType(type)}
+                          style={{
+                            padding:'8px 12px',
+                            border:'none',
+                            background: activeCallType === type ? JERRY_PINK : 'transparent',
+                            color: activeCallType === type ? 'white' : SLATE,
+                            borderRadius:'6px 6px 0 0',
+                            cursor:'pointer',
+                            fontSize:'12px',
+                            fontWeight: activeCallType === type ? 'bold' : 'normal',
+                            transition:'all 0.2s'
+                          }}
+                        >
+                          {type}
+                        </button>
+                      ))}
                     </div>
-                    <div style={{display:'flex', gap:'10px', marginTop:'60px'}}>
-                        <button className="btn-primary" onClick={handleSave} style={{background:JERRY_PINK, border:'none'}}>Save</button>
+                    
+                    {/* Script Editor for Active Call Type */}
+                    <div style={{flexGrow:1, display:'flex', flexDirection:'column'}}>
+                      <div style={{fontSize:'11px', color:'#999', marginBottom:'8px'}}>Script for <strong>{activeCallType}</strong> calls:</div>
+                      <div style={{flexGrow:1, minHeight:'250px'}}>
+                        <ReactQuill 
+                          theme="snow" 
+                          value={editForm.scripts?.[activeCallType] || ""} 
+                          onChange={(val) => updateScriptForCallType(activeCallType, val)} 
+                          style={{height:'250px'}}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div style={{display:'flex', gap:'10px', marginTop:'70px'}}>
+                        <button className="btn-primary" onClick={handleSave} style={{background:JERRY_PINK, border:'none'}}>Save Carrier</button>
                         <button className="btn-secondary" style={{color:'red', borderColor:'red'}} onClick={handleDelete}>Delete</button>
                     </div>
                 </div>
-            ) : <div style={{color:'#999'}}>Select a carrier</div>}
+            ) : <div style={{color:'#999'}}>Select a carrier to edit call type scripts</div>}
           </div>
         </div>
       </div>
@@ -510,18 +704,29 @@ const ScriptNode = ({ id, data }) => (
   </div>
 );
 
-const CarrierNode = ({ id, data }) => (
-  <div className="node-card" style={{border: data.isStart ? `2px solid ${JERRY_PINK}` : '1px solid #8b5cf6', boxShadow: '0 4px 6px -1px rgba(139, 92, 246, 0.1)'}}>
-    <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
-    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
-        <div style={{display:'flex', alignItems:'center', gap:'6px'}}><Building2 size={14} color="#8b5cf6"/><span style={{fontSize:'11px', color:'#8b5cf6', fontWeight:'800'}}>CARRIER LOOKUP</span></div>
-        <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+const CarrierNode = ({ id, data }) => {
+  const availableCallTypes = data.callTypes || DEFAULT_CALL_TYPES;
+  return (
+    <div className="node-card" style={{border: data.isStart ? `2px solid ${JERRY_PINK}` : '1px solid #8b5cf6', boxShadow: '0 4px 6px -1px rgba(139, 92, 246, 0.1)'}}>
+      <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
+          <div style={{display:'flex', alignItems:'center', gap:'6px'}}><Building2 size={14} color="#8b5cf6"/><span style={{fontSize:'11px', color:'#8b5cf6', fontWeight:'800'}}>CARRIER LOOKUP</span></div>
+          <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+      </div>
+      <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
+      <select 
+        className="nodrag" 
+        value={data.defaultCallType || availableCallTypes[0] || "Quote"} 
+        onChange={(evt) => data.onChange(id, { ...data, defaultCallType: evt.target.value })}
+        style={{width:'100%', padding:'6px', fontSize:'11px', border:`1px solid ${BORDER}`, borderRadius:'4px', marginTop:'6px', background:'white'}}
+      >
+        {availableCallTypes.map(type => <option key={type} value={type}>{type}</option>)}
+      </select>
+      <div style={{fontSize:'10px', color:'#666', fontStyle:'italic', padding:'4px', marginTop:'4px'}}>Default call type (can be changed during call)</div>
+      <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
     </div>
-    <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
-    <div style={{fontSize:'12px', color:'#666', fontStyle:'italic', padding:'4px', background:'#f5f3ff', borderRadius:'4px'}}>Shows carrier dropdown.</div>
-    <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
-  </div>
-);
+  );
+};
 
 const QuoteNode = ({ id, data }) => (
   <div className="node-card" style={{border: data.isStart ? `2px solid ${JERRY_PINK}` : `1px solid ${JERRY_PINK}`, boxShadow: `0 4px 6px -1px ${JERRY_PINK}20`}}>
@@ -549,7 +754,29 @@ const ChecklistNode = ({ id, data }) => (
   </div>
 );
 
-const nodeTypes = { scriptNode: ScriptNode, carrierNode: CarrierNode, quoteNode: QuoteNode, checklistNode: ChecklistNode };
+const MadLibsNode = ({ id, data }) => (
+  <div className="node-card" style={{border: data.isStart ? `2px solid ${JERRY_PINK}` : '1px solid #10b981', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.1)'}}>
+    <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
+    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
+        <div style={{display:'flex', alignItems:'center', gap:'6px'}}><Edit size={14} color="#10b981"/><span style={{fontSize:'11px', color:'#10b981', fontWeight:'800'}}>WORD TRACK</span></div>
+        <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+    </div>
+    <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
+    <textarea 
+      className="nodrag node-input-text" 
+      style={{minHeight: '80px', fontFamily: 'monospace', fontSize: '11px'}} 
+      value={data.template} 
+      onChange={(evt) => data.onChange(id, { ...data, template: evt.target.value })} 
+      placeholder="Type word track with variables like: Hi {name}, your rate is ${rate}/month."
+    />
+    <div style={{fontSize:'9px', color:'#10b981', fontStyle:'italic', padding:'4px', background:'#f0fdf4', borderRadius:'4px', marginTop:'4px'}}>
+      Use {`{variable_name}`} for fill-in-the-blanks
+    </div>
+    <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
+  </div>
+);
+
+const nodeTypes = { scriptNode: ScriptNode, carrierNode: CarrierNode, quoteNode: QuoteNode, checklistNode: ChecklistNode, madLibsNode: MadLibsNode };
 
 // --- MAIN APP ---
 export default function App() {
@@ -557,11 +784,13 @@ export default function App() {
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [carriers, setCarriers] = useState(DEFAULT_CARRIERS);
   const [quoteSettings, setQuoteSettings] = useState(DEFAULT_QUOTE_SETTINGS);
+  const [callTypes, setCallTypes] = useState(DEFAULT_CALL_TYPES); // Customizable call types
   
   // UI State
   const [isCarrierModalOpen, setCarrierModalOpen] = useState(false);
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
   const [isPlaybookManagerOpen, setPlaybookManagerOpen] = useState(false);
+  const [isCallTypesModalOpen, setCallTypesModalOpen] = useState(false); // New modal
   const [showAdmin, setShowAdmin] = useState(false);
   const [resources, setResources] = useState(DEFAULT_RESOURCES);
 
@@ -579,13 +808,15 @@ export default function App() {
   const [currentNodeId, setCurrentNodeId] = useState(null);
   const [history, setHistory] = useState([]);
   const [selectedCarrierId, setSelectedCarrierId] = useState(null);
+  const [selectedCallType, setSelectedCallType] = useState("Quote"); // Default call type
+  const [madLibsValues, setMadLibsValues] = useState({}); // Track filled word track variables
   
   // Checklist State Tracking
   const [activeChecklistState, setActiveChecklistState] = useState({});
 
   const updateNodeData = useCallback((id, newData) => {
-    setNodes((nds) => nds.map((node) => node.id === id ? { ...node, data: { ...newData, onChange: updateNodeData, setAsStartNode: setAsStartNode } } : node));
-  }, [setNodes]);
+    setNodes((nds) => nds.map((node) => node.id === id ? { ...node, data: { ...newData, onChange: updateNodeData, setAsStartNode: setAsStartNode, callTypes } } : node));
+  }, [setNodes, callTypes]);
 
   const setAsStartNode = useCallback((id) => {
     setNodes((nds) => nds.map((node) => ({
@@ -653,6 +884,14 @@ export default function App() {
     }
   }, [currentFlowName]);
 
+  // Reset call type when node changes
+  useEffect(() => {
+    const currentNode = getCurrentNode();
+    if (currentNode && currentNode.type === 'carrierNode') {
+      setSelectedCallType(currentNode.data.defaultCallType || "Quote");
+    }
+  }, [currentNodeId, nodes]);
+
   const loadFlowData = (filename) => {
     if (USE_LOCAL_STORAGE) {
       // Use localStorage for testing
@@ -662,20 +901,22 @@ export default function App() {
         try {
           const data = JSON.parse(savedData);
           if (!data.nodes || data.nodes.length === 0) {
-            setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome to the Insurance Wizard', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
+            setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome to the Insurance Wizard', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true, callTypes: data.callTypes || DEFAULT_CALL_TYPES}}]);
             setEdges([]);
             setCarriers(DEFAULT_CARRIERS);
             setResources(DEFAULT_RESOURCES);
             setQuoteSettings(DEFAULT_QUOTE_SETTINGS);
+            setCallTypes(data.callTypes || DEFAULT_CALL_TYPES);
             setHistory([]);
             return;
           }
-          const nodesWithHandler = data.nodes.map(n => ({ ...n, data: { ...n.data, onChange: updateNodeData, setAsStartNode: setAsStartNode } }));
+          const nodesWithHandler = data.nodes.map(n => ({ ...n, data: { ...n.data, onChange: updateNodeData, setAsStartNode: setAsStartNode, callTypes: data.callTypes || DEFAULT_CALL_TYPES } }));
           setNodes(nodesWithHandler);
           setEdges(data.edges || []);
           setCarriers(data.carriers || DEFAULT_CARRIERS);
           setResources(data.resources || DEFAULT_RESOURCES);
           setQuoteSettings(data.quoteSettings || DEFAULT_QUOTE_SETTINGS);
+          setCallTypes(data.callTypes || DEFAULT_CALL_TYPES);
           setHistory([]);
           setActiveChecklistState({});
           const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
@@ -688,11 +929,12 @@ export default function App() {
         }
       } else {
         // No saved data, initialize with default
-        setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome to the Insurance Wizard', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
+        setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome to the Insurance Wizard', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true, callTypes: DEFAULT_CALL_TYPES}}]);
         setEdges([]);
         setCarriers(DEFAULT_CARRIERS);
         setResources(DEFAULT_RESOURCES);
         setQuoteSettings(DEFAULT_QUOTE_SETTINGS);
+        setCallTypes(DEFAULT_CALL_TYPES);
         setHistory([]);
         const start = { id: '1' };
         setCurrentNodeId(start.id);
@@ -703,20 +945,22 @@ export default function App() {
         .then(res => res.json())
         .then(data => {
           if (!data.nodes || data.nodes.length === 0) {
-              setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome to the Insurance Wizard', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
+              setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome to the Insurance Wizard', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true, callTypes: data.callTypes || DEFAULT_CALL_TYPES}}]);
               setEdges([]);
               setCarriers(DEFAULT_CARRIERS);
               setResources(DEFAULT_RESOURCES);
               setQuoteSettings(DEFAULT_QUOTE_SETTINGS);
+              setCallTypes(data.callTypes || DEFAULT_CALL_TYPES);
               setHistory([]);
               return;
           }
-          const nodesWithHandler = data.nodes.map(n => ({ ...n, data: { ...n.data, onChange: updateNodeData, setAsStartNode: setAsStartNode } }));
+          const nodesWithHandler = data.nodes.map(n => ({ ...n, data: { ...n.data, onChange: updateNodeData, setAsStartNode: setAsStartNode, callTypes: data.callTypes || DEFAULT_CALL_TYPES } }));
           setNodes(nodesWithHandler);
           setEdges(data.edges || []);
           setCarriers(data.carriers || DEFAULT_CARRIERS);
           setResources(data.resources || DEFAULT_RESOURCES);
           setQuoteSettings(data.quoteSettings || DEFAULT_QUOTE_SETTINGS);
+          setCallTypes(data.callTypes || DEFAULT_CALL_TYPES);
           setHistory([]);
           setActiveChecklistState({});
           const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
@@ -737,11 +981,12 @@ export default function App() {
               const safeName = name.toLowerCase().replace(/ /g, '_') + ".json";
               setAvailableFlows(prev => [...prev, safeName]);
               setCurrentFlowName(safeName);
-              setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true}}]);
+              setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true, callTypes}}]);
               setEdges([]);
               setCarriers(DEFAULT_CARRIERS);
               setResources(DEFAULT_RESOURCES);
               setQuoteSettings(DEFAULT_QUOTE_SETTINGS);
+              setCallTypes(DEFAULT_CALL_TYPES);
               setHistory([]);
               setCurrentNodeId('1');
           }
@@ -808,7 +1053,8 @@ export default function App() {
       edges,
       carriers,
       quoteSettings,
-      resources
+      resources,
+      callTypes
     };
     
     if (USE_LOCAL_STORAGE) {
@@ -837,8 +1083,9 @@ export default function App() {
 
   const onConnect = useCallback((params) => { const label = window.prompt("Choice label?", "Next"); setEdges((eds) => addEdge({ ...params, label: label || "Next" }, eds)); }, [setEdges]);
   const addNewNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'scriptNode', position: {x:250, y:150}, data: {label:'Step', text:'', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
-  const addCarrierNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'carrierNode', position: {x:250, y:150}, data: {label:'Select Carrier', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
+  const addCarrierNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'carrierNode', position: {x:250, y:150}, data: {label:'Select Carrier', onChange: updateNodeData, setAsStartNode: setAsStartNode, callTypes, defaultCallType: callTypes[0] || "Quote"}}]);
   const addQuoteNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'quoteNode', position: {x:250, y:150}, data: {label:'Present Quote', closingQuestion:'How does that price sound?', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
+  const addMadLibsNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'madLibsNode', position: {x:250, y:150}, data: {label:'Word Track', template:'', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
   const addChecklistNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'checklistNode', position: {x:250, y:150}, data: {label:'Compliance Check', items:'Did you disclose the TCPA? (yes/no)\nDid you verify date of birth?', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
   
   const deleteSelected = useCallback(() => { setNodes((nds) => nds.filter((n) => !n.selected)); setEdges((eds) => eds.filter((e) => !e.selected)); }, [setNodes, setEdges]);
@@ -850,23 +1097,36 @@ export default function App() {
     let historyData = { ...current, selectedOption: label };
     
     if (current.type === 'carrierNode' && selectedCarrierId) {
-        historyData.carrierInfo = carriers[selectedCarrierId];
+        historyData.carrierInfo = {
+          ...carriers[selectedCarrierId],
+          selectedCallType: selectedCallType,
+          displayScript: carriers[selectedCarrierId].scripts?.[selectedCallType] || carriers[selectedCarrierId].script
+        };
     }
     if (current.type === 'checklistNode') {
         historyData.checklistAnswers = activeChecklistState[current.id] || {};
+    }
+    if (current.type === 'madLibsNode') {
+        historyData.madLibsData = {
+          filledText: fillTemplate(current.data.template, madLibsValues[current.id] || {}),
+          variables: madLibsValues[current.id] || {}
+        };
     }
 
     setHistory(prev => [...prev, historyData]);
     setCurrentNodeId(targetId);
     setSelectedCarrierId(null);
+    setSelectedCallType("Quote"); // Reset to default
   };
 
   const resetWizard = () => { 
       const start = nodes.find(n => n.data.isStart) || nodes.find(n => n.id === '1') || nodes[0]; 
       if(start) setCurrentNodeId(start.id); 
       setHistory([]); 
-      setSelectedCarrierId(null); 
+      setSelectedCarrierId(null);
+      setSelectedCallType("Quote");
       setActiveChecklistState({});
+      setMadLibsValues({}); // Reset madlibs
   };
 
   const updateChecklistAnswer = (nodeId, itemText, value) => {
@@ -905,6 +1165,40 @@ export default function App() {
           });
       });
       return report;
+  };
+
+  // --- MADLIBS HELPERS ---
+  const extractVariables = (template) => {
+    if (!template) return [];
+    const regex = /\{([^}]+)\}/g;
+    const matches = [];
+    let match;
+    while ((match = regex.exec(template)) !== null) {
+      if (!matches.includes(match[1])) {
+        matches.push(match[1]);
+      }
+    }
+    return matches;
+  };
+
+  const fillTemplate = (template, values) => {
+    if (!template) return '';
+    let filled = template;
+    Object.keys(values).forEach(key => {
+      const regex = new RegExp(`\\{${key}\\}`, 'g');
+      filled = filled.replace(regex, values[key] || `{${key}}`);
+    });
+    return filled;
+  };
+
+  const updateMadLibsValue = (nodeId, variableName, value) => {
+    setMadLibsValues(prev => ({
+      ...prev,
+      [nodeId]: {
+        ...(prev[nodeId] || {}),
+        [variableName]: value
+      }
+    }));
   };
 
   const copyCompliance = () => {
@@ -968,7 +1262,8 @@ export default function App() {
 
   return (
     <div className="app-container" style={{display:'flex', width:'100vw', height:'100vh', overflow:'hidden', fontFamily:'Inter, sans-serif'}}>
-      <CarrierManager isOpen={isCarrierModalOpen} onClose={() => setCarrierModalOpen(false)} carriers={carriers} setCarriers={setCarriers} />
+      <CallTypesManager isOpen={isCallTypesModalOpen} onClose={() => setCallTypesModalOpen(false)} callTypes={callTypes} setCallTypes={setCallTypes} />
+      <CarrierManager isOpen={isCarrierModalOpen} onClose={() => setCarrierModalOpen(false)} carriers={carriers} setCarriers={setCarriers} callTypes={callTypes} />
       <SettingsManager isOpen={isSettingsModalOpen} onClose={() => setSettingsModalOpen(false)} settings={quoteSettings} setSettings={setQuoteSettings} />
       <PlaybookManager 
         isOpen={isPlaybookManagerOpen} 
@@ -1013,11 +1308,30 @@ export default function App() {
               <div className="bubble" style={{background: '#F3F4F6'}}>
                 <div className="bubble-label" style={{color: SLATE}}>{step.data.label}</div>
                 {step.type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE, width: '100%', minWidth: 0, wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'normal', whiteSpace: 'normal'}} dangerouslySetInnerHTML={{__html: cleanHTML(step.data.text)}}></div>}
-                {step.type === 'carrierNode' && step.carrierInfo && <div><div style={{fontWeight:'bold', color:JERRY_PINK}}>{step.carrierInfo.name} Selected</div><div style={{fontSize:'12px'}} dangerouslySetInnerHTML={{__html: step.carrierInfo.script}}></div></div>}
+                {step.type === 'carrierNode' && step.carrierInfo && (
+                  <div>
+                    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px'}}>
+                      <div style={{fontWeight:'bold', color:JERRY_PINK}}>{step.carrierInfo.name} Selected</div>
+                      {step.carrierInfo.selectedCallType && (
+                        <div style={{fontSize:'10px', background:'#8b5cf6', color:'white', padding:'3px 6px', borderRadius:'4px', fontWeight:'bold'}}>
+                          {step.carrierInfo.selectedCallType}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{fontSize:'12px'}} dangerouslySetInnerHTML={{__html: step.carrierInfo.displayScript || step.carrierInfo.script}}></div>
+                  </div>
+                )}
                 {step.type === 'checklistNode' && (
                     <div style={{display:'flex', flexDirection:'column', gap:'4px'}}>
                         {renderChecklistItems(step.data.items, step.checklistAnswers, step.id, false)}
                     </div>
+                )}
+                {step.type === 'madLibsNode' && step.madLibsData && (
+                  <div style={{background:'white', padding:'10px', borderRadius:'6px', border:'1px solid #10b981'}}>
+                    <div style={{fontSize:'13px', color:SLATE, lineHeight:'1.6'}}>
+                      {step.madLibsData.filledText}
+                    </div>
+                  </div>
                 )}
                 {step.type === 'quoteNode' && <div style={{fontStyle:'italic', color:'#666'}}>Quote presented.</div>}
               </div>
@@ -1025,16 +1339,48 @@ export default function App() {
           ))}
           
           {getCurrentNode() && (
-            <div className="bubble" style={{ borderLeft: `4px solid ${getCurrentNode().type === 'carrierNode' ? '#8b5cf6' : getCurrentNode().type === 'quoteNode' ? JERRY_PINK : getCurrentNode().type === 'checklistNode' ? COMPLIANCE_ORANGE : '#E5090E'}`, background: JERRY_BG }}>
+            <div className="bubble" style={{ borderLeft: `4px solid ${getCurrentNode().type === 'carrierNode' ? '#8b5cf6' : getCurrentNode().type === 'quoteNode' ? JERRY_PINK : getCurrentNode().type === 'checklistNode' ? COMPLIANCE_ORANGE : getCurrentNode().type === 'madLibsNode' ? '#10b981' : '#E5090E'}`, background: JERRY_BG }}>
               <div className="bubble-label" style={{color: JERRY_PINK}}>{getCurrentNode().data.label}</div>
               
               {getCurrentNode().type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE, width: '100%', minWidth: 0, wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'normal', whiteSpace: 'normal'}} dangerouslySetInnerHTML={{__html: cleanHTML(getCurrentNode().data.text)}}></div>}
               
               {getCurrentNode().type === 'carrierNode' && (
                 <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
-                  <div className="bubble-text" style={{color: SLATE}}>Select carrier for instructions:</div>
-                  <select style={{padding:'8px', borderRadius:'8px', border:`1px solid ${BORDER}`, fontSize:'14px'}} onChange={(e) => setSelectedCarrierId(e.target.value)} value={selectedCarrierId || ""}><option value="" disabled>-- Choose Carrier --</option>{Object.values(carriers).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                  {selectedCarrierId && carriers[selectedCarrierId] && <div style={{background:'white', padding:'10px', borderRadius:'8px', border:`1px solid ${BORDER}`}}><div style={{fontWeight:'bold', color:JERRY_PINK, marginBottom:'6px'}}>{carriers[selectedCarrierId].name}</div><div style={{fontSize:'13px', color:SLATE}} dangerouslySetInnerHTML={{__html: carriers[selectedCarrierId].script}}></div></div>}
+                  {/* Call Type Selector */}
+                  <div>
+                    <label style={{fontSize:'12px', fontWeight:'bold', color:SLATE, display:'block', marginBottom:'6px'}}>Call Type:</label>
+                    <select 
+                      style={{padding:'8px', borderRadius:'8px', border:`1px solid ${BORDER}`, fontSize:'14px', width:'100%'}} 
+                      onChange={(e) => setSelectedCallType(e.target.value)} 
+                      value={selectedCallType || getCurrentNode().data.defaultCallType || callTypes[0] || "Quote"}
+                    >
+                      {callTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                    </select>
+                  </div>
+                  
+                  {/* Carrier Selector */}
+                  <div>
+                    <label style={{fontSize:'12px', fontWeight:'bold', color:SLATE, display:'block', marginBottom:'6px'}}>Select Carrier:</label>
+                    <select 
+                      style={{padding:'8px', borderRadius:'8px', border:`1px solid ${BORDER}`, fontSize:'14px', width:'100%'}} 
+                      onChange={(e) => setSelectedCarrierId(e.target.value)} 
+                      value={selectedCarrierId || ""}
+                    >
+                      <option value="" disabled>-- Choose Carrier --</option>
+                      {Object.values(carriers).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  
+                  {/* Display Script for Selected Call Type */}
+                  {selectedCarrierId && carriers[selectedCarrierId] && (
+                    <div style={{background:'white', padding:'12px', borderRadius:'8px', border:`2px solid #8b5cf6`}}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px'}}>
+                        <div style={{fontWeight:'bold', color:'#8b5cf6', fontSize:'15px'}}>{carriers[selectedCarrierId].name}</div>
+                        <div style={{fontSize:'11px', background:'#8b5cf6', color:'white', padding:'4px 8px', borderRadius:'4px', fontWeight:'bold'}}>{selectedCallType}</div>
+                      </div>
+                      <div style={{fontSize:'13px', color:SLATE}} dangerouslySetInnerHTML={{__html: carriers[selectedCarrierId].scripts?.[selectedCallType] || carriers[selectedCarrierId].script || "<p><i>No script for this call type yet.</i></p>"}}></div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1042,6 +1388,41 @@ export default function App() {
                   <div style={{display:'flex', flexDirection:'column', gap:'8px'}}>
                       {renderChecklistItems(getCurrentNode().data.items, activeChecklistState[getCurrentNode().id], getCurrentNode().id, true)}
                   </div>
+              )}
+
+              {getCurrentNode().type === 'madLibsNode' && (
+                <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+                  {/* Show filled preview at top */}
+                  <div style={{background:'white', padding:'12px', borderRadius:'8px', border:'2px solid #10b981'}}>
+                    <div style={{fontSize:'11px', fontWeight:'bold', color:'#10b981', marginBottom:'8px', textTransform:'uppercase'}}>Preview:</div>
+                    <div style={{fontSize:'14px', color:SLATE, lineHeight:'1.6', fontFamily:'inherit'}}>
+                      {fillTemplate(getCurrentNode().data.template, madLibsValues[getCurrentNode().id] || {})}
+                    </div>
+                  </div>
+                  
+                  {/* Input fields for each variable */}
+                  <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+                    <div style={{fontSize:'11px', fontWeight:'bold', color:'#10b981', textTransform:'uppercase'}}>Fill in the blanks:</div>
+                    {extractVariables(getCurrentNode().data.template).map((variable, idx) => (
+                      <div key={idx} style={{display:'flex', flexDirection:'column', gap:'4px'}}>
+                        <label style={{fontSize:'12px', fontWeight:'600', color:SLATE}}>{variable}:</label>
+                        <input 
+                          type="text"
+                          value={madLibsValues[getCurrentNode().id]?.[variable] || ''}
+                          onChange={(e) => updateMadLibsValue(getCurrentNode().id, variable, e.target.value)}
+                          placeholder={`Enter ${variable}...`}
+                          style={{
+                            padding:'10px',
+                            border:`1px solid ${BORDER}`,
+                            borderRadius:'6px',
+                            fontSize:'14px',
+                            width:'100%'
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
 
               {getCurrentNode().type === 'quoteNode' && (<QuoteBuilderForm closingQuestion={getCurrentNode().data.closingQuestion} settings={quoteSettings} carriers={carriers} />)}
@@ -1085,8 +1466,10 @@ export default function App() {
             <div style={{width:'1px', height:'20px', background: BORDER, margin:'0 4px'}}></div>
             <button className="btn btn-secondary" onClick={() => setSettingsModalOpen(true)} title="Config"><Settings size={16}/></button>
             <button className="btn btn-secondary" onClick={() => setCarrierModalOpen(true)} title="Carriers"><Building2 size={16}/></button>
+            <button className="btn btn-secondary" onClick={() => setCallTypesModalOpen(true)} title="Manage Call Types" style={{color:'#8b5cf6'}}><Layers size={16}/></button>
             <div style={{width:'1px', height:'20px', background: BORDER, margin:'0 4px'}}></div>
             <button className="btn btn-secondary" onClick={addNewNode} title="Add Script"><Plus size={16}/></button>
+            <button className="btn btn-secondary" onClick={addMadLibsNode} style={{color:'#10b981'}} title="Add Word Track"><Edit size={16}/></button>
             <button className="btn btn-secondary" onClick={addChecklistNode} style={{color: COMPLIANCE_ORANGE}} title="Add Checklist"><ClipboardCheck size={16}/></button>
             <button className="btn btn-secondary" onClick={addCarrierNode} style={{color:'#8b5cf6'}} title="Add Carrier"><Building2 size={16}/></button>
             <button className="btn btn-secondary" onClick={addQuoteNode} style={{color: JERRY_PINK}} title="Add Quote"><DollarSign size={16}/></button>
