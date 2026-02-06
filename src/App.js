@@ -511,7 +511,14 @@ export default function App() {
 
   // Playbook State (Multiple Flows)
   const [availableFlows, setAvailableFlows] = useState([]);
-  const [currentFlowName, setCurrentFlowName] = useState("default_flow.json");
+  const [currentFlowName, setCurrentFlowName] = useState(() => {
+    // Load the last used flow from localStorage
+    if (USE_LOCAL_STORAGE) {
+      const lastFlow = localStorage.getItem('insurance-wizard-last-flow');
+      return lastFlow || "default_flow.json";
+    }
+    return "default_flow.json";
+  });
 
   const [currentNodeId, setCurrentNodeId] = useState(null);
   const [history, setHistory] = useState([]);
@@ -556,8 +563,20 @@ export default function App() {
 
   useEffect(() => {
     refreshFlows();
-    loadFlowData(currentFlowName);
+    // Small delay to ensure handlers are ready
+    const timer = setTimeout(() => {
+      loadFlowData(currentFlowName);
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Save the current flow name whenever it changes
+  useEffect(() => {
+    if (USE_LOCAL_STORAGE && currentFlowName) {
+      localStorage.setItem('insurance-wizard-last-flow', currentFlowName);
+    }
+  }, [currentFlowName]);
 
   const loadFlowData = (filename) => {
     if (USE_LOCAL_STORAGE) {
