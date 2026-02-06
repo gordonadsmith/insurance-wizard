@@ -6,28 +6,28 @@ import 'reactflow/dist/style.css';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';   
 import 'react-quill-new/dist/quill.bubble.css'; 
-import { Plus, RefreshCw, ChevronRight, Trash2, Save, Building2, X, DollarSign, Settings, CheckSquare, Copy, Layers, Lock, Unlock, Flag, BookOpen, Link as LinkIcon, FileText, Edit, FolderOpen, ClipboardCheck, FolderCog, Pencil } from 'lucide-react';
+import { Plus, RefreshCw, ChevronRight, Trash2, Save, Building2, X, DollarSign, Settings, CheckSquare, Copy, Layers, Lock, Unlock, Flag, BookOpen, Link as LinkIcon, FileText, Edit, FolderOpen, ClipboardCheck, FolderCog, Pencil, Upload, Download } from 'lucide-react';
 import './App.css';
 
-// --- ASSETS ---
 import jerryLogo from './jerry_logo.png'; 
 
-// --- CONFIG ---
+// ============================================================================
+// CONFIGURATION
+// ============================================================================
+
 const API_URL = "/api"; 
+const USE_LOCAL_STORAGE = true;
 
-// --- STORAGE MODE TOGGLE ---
-// Set to true for local testing (uses browser localStorage)
-// Set to false for production (uses backend API)
-const USE_LOCAL_STORAGE = true; // <-- Change this to false when deploying to company servers 
-
-// --- THEME CONSTANTS ---
 const JERRY_PINK = "#E9406A";
 const JERRY_BG = "#FDF2F4"; 
 const SLATE = "#475569";
 const BORDER = "#E5E7EB";
 const COMPLIANCE_ORANGE = "#F59E0B"; 
 
-// --- HELPER: ROBUST LINE BREAKER ---
+// ============================================================================
+// UTILITIES
+// ============================================================================
+
 const FormatText = ({ text }) => {
   if (!text) return null;
   const htmlContent = text.replace(/\r?\n/g, '<br />');
@@ -46,14 +46,14 @@ const FormatText = ({ text }) => {
   );
 };
 
-// --- HELPER: CLEAN HTML TO REMOVE NON-BREAKING SPACES ---
 const cleanHTML = (html) => {
   if (!html) return '';
-  // Replace &nbsp; with regular spaces
   return html.replace(/&nbsp;/g, ' ');
 };
 
-// --- DEFAULTS ---
+// ============================================================================
+// DEFAULTS
+// ============================================================================
 const DEFAULT_CARRIERS = {
   "1": { 
     id: "1", 
@@ -66,7 +66,6 @@ const DEFAULT_CARRIERS = {
   },
 };
 
-// Default call type options (can be customized per playbook)
 const DEFAULT_CALL_TYPES = ["Quote", "Sale", "Billing", "Service", "Claims", "Other"];
 
 const DEFAULT_RESOURCES = [
@@ -97,7 +96,7 @@ const DEFAULT_QUOTE_SETTINGS = {
   template: "<p>Excellent news, I found a great rate with <strong>{carrier}</strong>.</p><p>{policy}</p><p>Then {vehicles}.</p><p>I will get this started today for <strong>{down} down</strong> and <strong>{monthly} a month</strong>.</p><p>{closing}</p>"
 };
 
-// --- COMPONENT: Quote Builder ---
+// QuoteBuilderForm
 const QuoteBuilderForm = ({ closingQuestion, settings = DEFAULT_QUOTE_SETTINGS, carriers = {} }) => {
   const [downPayment, setDownPayment] = useState("");
   const [monthly, setMonthly] = useState("");
@@ -190,7 +189,7 @@ const QuoteBuilderForm = ({ closingQuestion, settings = DEFAULT_QUOTE_SETTINGS, 
   );
 };
 
-// --- COMPONENT: Settings Manager ---
+// SettingsManager
 const SettingsManager = ({ isOpen, onClose, settings, setSettings }) => {
   const [localSettings, setLocalSettings] = useState(settings);
   useEffect(() => { setLocalSettings(settings); }, [settings]);
@@ -216,16 +215,15 @@ const SettingsManager = ({ isOpen, onClose, settings, setSettings }) => {
   );
 };
 
-// --- COMPONENT: Issues Manager ---
+// IssuesManager
 const IssuesManager = ({ isOpen, onClose, issues, setIssues }) => {
   const [localIssues, setLocalIssues] = useState(issues);
-  const [expandedId, setExpandedId] = useState(null); // Track which issue is expanded
-  const [expandedCategories, setExpandedCategories] = useState({}); // Track which categories are expanded
+  const [expandedId, setExpandedId] = useState(null);
+  const [expandedCategories, setExpandedCategories] = useState({});
   
   useEffect(() => { 
     if (isOpen) {
       setLocalIssues(issues);
-      // Expand first category by default
       if (issues.length > 0) {
         const firstCategory = issues[0].category || 'Other';
         setExpandedCategories({ [firstCategory]: true });
@@ -256,7 +254,6 @@ const IssuesManager = ({ isOpen, onClose, issues, setIssues }) => {
     setExpandedCategories(prev => ({ ...prev, [category]: !prev[category] }));
   };
 
-  // Group issues by category
   const groupedIssues = localIssues.reduce((acc, issue) => {
     const cat = issue.category || 'Other';
     if (!acc[cat]) acc[cat] = [];
@@ -436,9 +433,7 @@ const IssuesManager = ({ isOpen, onClose, issues, setIssues }) => {
   );
 };
 
-// --- COMPONENT: Resource Sidebar ---
-
-// --- COMPONENT: Resource Sidebar ---
+// ResourceManager
 const ResourceManager = ({ isOpen, onClose, resources, setResources }) => {
   const [localRes, setLocalRes] = useState(resources);
   useEffect(() => { setLocalRes(resources); }, [resources]);
@@ -471,6 +466,7 @@ const ResourceManager = ({ isOpen, onClose, resources, setResources }) => {
   );
 };
 
+// ResourceSidebar
 const ResourceSidebar = ({ resources, setResources, issues, setIssues }) => {
   const [expanded, setExpanded] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
@@ -481,7 +477,6 @@ const ResourceSidebar = ({ resources, setResources, issues, setIssues }) => {
   const [activeIssue, setActiveIssue] = useState(null);
   const [expandedIssueCategories, setExpandedIssueCategories] = useState({});
 
-  // Filter and group issues
   const filteredIssues = issues.filter(issue => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
@@ -492,7 +487,6 @@ const ResourceSidebar = ({ resources, setResources, issues, setIssues }) => {
     );
   });
 
-  // Group filtered issues by category
   const groupedIssues = filteredIssues.reduce((acc, issue) => {
     const cat = issue.category || 'Other';
     if (!acc[cat]) acc[cat] = [];
@@ -684,7 +678,7 @@ const ResourceSidebar = ({ resources, setResources, issues, setIssues }) => {
   );
 };
 
-// --- COMPONENT: Playbook Manager ---
+// PlaybookManager
 const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, currentFlowName, setCurrentFlowName, loadFlowData }) => {
     const [renamingId, setRenamingId] = useState(null);
     const [newName, setNewName] = useState("");
@@ -695,22 +689,18 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
         let safeNewName = newName.trim();
         if(!safeNewName) return;
         
-        // Add .json if not present
         if (!safeNewName.endsWith('.json')) {
             safeNewName = safeNewName + '.json';
         }
         
         if (USE_LOCAL_STORAGE) {
-          // Use localStorage for testing
           const oldData = localStorage.getItem(`insurance-wizard-${oldName}`);
           
-          // Save with new name
           if (oldData) {
               localStorage.setItem(`insurance-wizard-${safeNewName}`, oldData);
               localStorage.removeItem(`insurance-wizard-${oldName}`);
           }
           
-          // Update flows list
           const flows = JSON.parse(localStorage.getItem('insurance-wizard-flows') || '[]');
           const updatedFlows = flows.map(f => f === oldName ? safeNewName : f);
           localStorage.setItem('insurance-wizard-flows', JSON.stringify(updatedFlows));
@@ -722,7 +712,6 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
           setRenamingId(null);
           setNewName("");
         } else {
-          // Use API for production
           fetch(`${API_URL}/rename_flow`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
@@ -746,10 +735,8 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
         if(!window.confirm(`Are you sure you want to delete "${filename}"? This cannot be undone.`)) return;
         
         if (USE_LOCAL_STORAGE) {
-          // Use localStorage for testing
           localStorage.removeItem(`insurance-wizard-${filename}`);
           
-          // Update flows list
           const flows = JSON.parse(localStorage.getItem('insurance-wizard-flows') || '[]');
           const updatedFlows = flows.filter(f => f !== filename);
           localStorage.setItem('insurance-wizard-flows', JSON.stringify(updatedFlows));
@@ -759,7 +746,6 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
               window.location.reload(); 
           }
         } else {
-          // Use API for production
           fetch(`${API_URL}/delete_flow`, {
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
@@ -789,14 +775,11 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
         }
         
         if (USE_LOCAL_STORAGE) {
-            // Use localStorage for testing
             const originalData = localStorage.getItem(`insurance-wizard-${filename}`);
             
             if (originalData) {
-                // Save copy with new name
                 localStorage.setItem(`insurance-wizard-${safeCopyName}`, originalData);
                 
-                // Update flows list
                 const flows = JSON.parse(localStorage.getItem('insurance-wizard-flows') || '[]');
                 if (!flows.includes(safeCopyName)) {
                     flows.push(safeCopyName);
@@ -804,7 +787,6 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
                 }
                 
                 refreshList();
-                // Switch to the new copy
                 setCurrentFlowName(safeCopyName);
                 loadFlowData(safeCopyName);
                 onClose();
@@ -812,7 +794,6 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
                 alert('Could not find the original playbook to copy.');
             }
         } else {
-            // Use API for production
             fetch(`${API_URL}/copy_flow`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -832,6 +813,115 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
         }
     };
 
+    const handleExport = (filename) => {
+        if (USE_LOCAL_STORAGE) {
+            const data = localStorage.getItem(`insurance-wizard-${filename}`);
+            if (!data) {
+                alert('Playbook not found');
+                return;
+            }
+            
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } else {
+            fetch(`${API_URL}/load?filename=${filename}`)
+                .then(res => res.json())
+                .then(data => {
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                })
+                .catch(err => alert('Error exporting playbook'));
+        }
+    };
+
+    const handleImport = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    
+                    if (!data.nodes || !data.edges) {
+                        alert('Invalid playbook file - missing required data');
+                        return;
+                    }
+                    
+                    let importName = file.name;
+                    if (!importName.endsWith('.json')) {
+                        importName = importName + '.json';
+                    }
+                    
+                    if (availableFlows.includes(importName)) {
+                        const overwrite = window.confirm(`Playbook "${importName}" already exists. Overwrite?`);
+                        if (!overwrite) {
+                            const newName = prompt('Enter a new name for this playbook:', importName.replace('.json', '') + ' (Imported)');
+                            if (!newName) return;
+                            importName = newName.endsWith('.json') ? newName : newName + '.json';
+                        }
+                    }
+                    
+                    if (USE_LOCAL_STORAGE) {
+                        localStorage.setItem(`insurance-wizard-${importName}`, JSON.stringify(data));
+                        
+                        const flows = JSON.parse(localStorage.getItem('insurance-wizard-flows') || '[]');
+                        if (!flows.includes(importName)) {
+                            flows.push(importName);
+                            localStorage.setItem('insurance-wizard-flows', JSON.stringify(flows));
+                        }
+                        
+                        refreshList();
+                        alert(`Successfully imported "${importName}"`);
+                        
+                        if (window.confirm('Switch to imported playbook now?')) {
+                            setCurrentFlowName(importName);
+                            loadFlowData(importName);
+                            onClose();
+                        }
+                    } else {
+                        fetch(`${API_URL}/save`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ ...data, filename: importName })
+                        }).then(res => res.json()).then(result => {
+                            refreshList();
+                            alert(`Successfully imported "${importName}"`);
+                            if (window.confirm('Switch to imported playbook now?')) {
+                                setCurrentFlowName(importName);
+                                loadFlowData(importName);
+                                onClose();
+                            }
+                        }).catch(err => alert('Error importing playbook'));
+                    }
+                } catch (err) {
+                    alert('Error reading file - invalid JSON format');
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    };
+
     return (
         <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:1300, display:'flex', alignItems:'center', justifyContent:'center'}}>
             <div style={{background:'white', width:'500px', borderRadius:'16px', padding:'20px', boxShadow:'0 20px 50px rgba(0,0,0,0.2)'}}>
@@ -839,6 +929,28 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
                     <h3 style={{margin:0, display:'flex', alignItems:'center', gap:'8px'}}><FolderCog size={20} color={SLATE}/> Manage Playbooks</h3>
                     <button onClick={onClose} style={{border:'none', background:'none', cursor:'pointer'}}><X size={20}/></button>
                 </div>
+                
+                {/* Import Button */}
+                <div style={{marginBottom:'15px'}}>
+                    <button 
+                        onClick={handleImport} 
+                        className="btn-primary"
+                        style={{
+                            width:'100%', 
+                            background:'#10b981', 
+                            border:'none',
+                            padding:'10px',
+                            display:'flex',
+                            alignItems:'center',
+                            justifyContent:'center',
+                            gap:'8px'
+                        }}
+                    >
+                        <Upload size={16}/>
+                        Import Playbook from File
+                    </button>
+                </div>
+                
                 <div style={{display:'flex', flexDirection:'column', gap:'10px', maxHeight:'400px', overflowY:'auto'}}>
                     {availableFlows.map(flow => (
                         <div key={flow} style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px', background:'#f9fafb', borderRadius:'8px', border:`1px solid ${BORDER}`}}>
@@ -852,6 +964,7 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
                                 <>
                                     <div style={{fontWeight: currentFlowName === flow ? 'bold' : 'normal', color: currentFlowName === flow ? JERRY_PINK : SLATE}}>{flow.replace('.json','')}</div>
                                     <div style={{display:'flex', gap:'8px'}}>
+                                        <button onClick={() => handleExport(flow)} title="Export/Download" style={{border:'none', background:'white', cursor:'pointer', padding:'4px', borderRadius:'4px', border:`1px solid ${BORDER}`}}><Download size={14} color="#10b981"/></button>
                                         <button onClick={() => handleCopy(flow)} title="Copy/Duplicate" style={{border:'none', background:'white', cursor:'pointer', padding:'4px', borderRadius:'4px', border:`1px solid ${BORDER}`}}><Copy size={14} color={SLATE}/></button>
                                         <button onClick={() => { setRenamingId(flow); setNewName(flow.replace('.json','')); }} title="Rename" style={{border:'none', background:'white', cursor:'pointer', padding:'4px', borderRadius:'4px', border:`1px solid ${BORDER}`}}><Pencil size={14} color={SLATE}/></button>
                                         <button onClick={() => handleDelete(flow)} title="Delete" style={{border:'none', background:'white', cursor:'pointer', padding:'4px', borderRadius:'4px', border:`1px solid ${BORDER}`}}><Trash2 size={14} color="red"/></button>
@@ -866,7 +979,7 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
     );
 };
 
-// --- COMPONENT: Call Types Manager ---
+// CallTypesManager
 const CallTypesManager = ({ isOpen, onClose, callTypes, setCallTypes }) => {
   const [localCallTypes, setLocalCallTypes] = useState(callTypes);
   const [newTypeName, setNewTypeName] = useState("");
@@ -968,7 +1081,7 @@ const CallTypesManager = ({ isOpen, onClose, callTypes, setCallTypes }) => {
   );
 };
 
-// --- COMPONENT: Carrier Manager ---
+// CarrierManager
 const CarrierManager = ({ isOpen, onClose, carriers, setCarriers, callTypes }) => {
   const [selectedId, setSelectedId] = useState(null);
   const [editForm, setEditForm] = useState(null);
@@ -979,11 +1092,10 @@ const CarrierManager = ({ isOpen, onClose, carriers, setCarriers, callTypes }) =
   const handleSelect = (id) => { 
     setSelectedId(id); 
     const carrier = carriers[id];
-    // Ensure scripts object exists with all call types
     if (!carrier.scripts) {
       carrier.scripts = {};
       callTypes.forEach(type => {
-        carrier.scripts[type] = carrier.script || ""; // Migrate old format
+        carrier.scripts[type] = carrier.script || "";
       });
     }
     setEditForm({ ...carrier }); 
@@ -1085,7 +1197,7 @@ const CarrierManager = ({ isOpen, onClose, carriers, setCarriers, callTypes }) =
   );
 };
 
-// --- NODES ---
+// NODES
 const ScriptNode = ({ id, data }) => (
   <div className="node-card" style={{border: data.isStart ? `2px solid ${JERRY_PINK}` : `1px solid ${BORDER}`}}>
     <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
@@ -1175,27 +1287,24 @@ const MadLibsNode = ({ id, data }) => (
 
 const nodeTypes = { scriptNode: ScriptNode, carrierNode: CarrierNode, quoteNode: QuoteNode, checklistNode: ChecklistNode, madLibsNode: MadLibsNode };
 
-// --- MAIN APP ---
+// MAIN APP
 export default function App() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [carriers, setCarriers] = useState(DEFAULT_CARRIERS);
   const [quoteSettings, setQuoteSettings] = useState(DEFAULT_QUOTE_SETTINGS);
-  const [callTypes, setCallTypes] = useState(DEFAULT_CALL_TYPES); // Customizable call types
+  const [callTypes, setCallTypes] = useState(DEFAULT_CALL_TYPES);
   
-  // UI State
   const [isCarrierModalOpen, setCarrierModalOpen] = useState(false);
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
   const [isPlaybookManagerOpen, setPlaybookManagerOpen] = useState(false);
-  const [isCallTypesModalOpen, setCallTypesModalOpen] = useState(false); // New modal
+  const [isCallTypesModalOpen, setCallTypesModalOpen] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [resources, setResources] = useState(DEFAULT_RESOURCES);
-  const [issues, setIssues] = useState(DEFAULT_ISSUES); // Common issues
+  const [issues, setIssues] = useState(DEFAULT_ISSUES);
 
-  // Playbook State (Multiple Flows)
   const [availableFlows, setAvailableFlows] = useState([]);
   const [currentFlowName, setCurrentFlowName] = useState(() => {
-    // Load the last used flow from localStorage
     if (USE_LOCAL_STORAGE) {
       const lastFlow = localStorage.getItem('insurance-wizard-last-flow');
       return lastFlow || "default_flow.json";
@@ -1206,10 +1315,9 @@ export default function App() {
   const [currentNodeId, setCurrentNodeId] = useState(null);
   const [history, setHistory] = useState([]);
   const [selectedCarrierId, setSelectedCarrierId] = useState(null);
-  const [selectedCallType, setSelectedCallType] = useState("Quote"); // Default call type
-  const [madLibsValues, setMadLibsValues] = useState({}); // Track filled word track variables
+  const [selectedCallType, setSelectedCallType] = useState("Quote");
+  const [madLibsValues, setMadLibsValues] = useState({});
   
-  // Checklist State Tracking
   const [activeChecklistState, setActiveChecklistState] = useState({});
 
   const updateNodeData = useCallback((id, newData) => {
@@ -1223,20 +1331,15 @@ export default function App() {
     })));
   }, [setNodes]);
 
-  // Load list of flows AND current flow
   const refreshFlows = () => {
     if (USE_LOCAL_STORAGE) {
-      // Use localStorage for testing
       const savedFlows = localStorage.getItem('insurance-wizard-flows');
       if (savedFlows) {
         setAvailableFlows(JSON.parse(savedFlows));
       } else {
-        // Only initialize if truly first run (no flows exist at all)
-        // Check if any flow data exists
         const hasAnyData = Object.keys(localStorage).some(key => key.startsWith('insurance-wizard-') && key !== 'insurance-wizard-flows' && key !== 'insurance-wizard-last-flow');
         
         if (hasAnyData) {
-          // Data exists but flows list is missing, rebuild it
           const flowKeys = Object.keys(localStorage)
             .filter(key => key.startsWith('insurance-wizard-') && key !== 'insurance-wizard-flows' && key !== 'insurance-wizard-last-flow')
             .map(key => key.replace('insurance-wizard-', ''));
@@ -1248,13 +1351,11 @@ export default function App() {
             localStorage.setItem('insurance-wizard-flows', JSON.stringify([]));
           }
         } else {
-          // Truly first run, initialize with default
           setAvailableFlows(["default_flow.json"]);
           localStorage.setItem('insurance-wizard-flows', JSON.stringify(["default_flow.json"]));
         }
       }
     } else {
-      // Use API for production
       fetch(`${API_URL}/flows`)
         .then(res => res.json())
         .then(files => {
@@ -1267,22 +1368,18 @@ export default function App() {
 
   useEffect(() => {
     refreshFlows();
-    // Small delay to ensure handlers are ready
     const timer = setTimeout(() => {
       loadFlowData(currentFlowName);
     }, 0);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Save the current flow name whenever it changes
   useEffect(() => {
     if (USE_LOCAL_STORAGE && currentFlowName) {
       localStorage.setItem('insurance-wizard-last-flow', currentFlowName);
     }
   }, [currentFlowName]);
 
-  // Reset call type when node changes
   useEffect(() => {
     const currentNode = getCurrentNode();
     if (currentNode && currentNode.type === 'carrierNode') {
@@ -1292,7 +1389,6 @@ export default function App() {
 
   const loadFlowData = (filename) => {
     if (USE_LOCAL_STORAGE) {
-      // Use localStorage for testing
       const savedData = localStorage.getItem(`insurance-wizard-${filename}`);
       
       if (savedData) {
@@ -1327,7 +1423,6 @@ export default function App() {
           setHistory([]);
         }
       } else {
-        // No saved data, initialize with default
         setNodes([{ id: '1', type: 'scriptNode', position: {x:250, y:150}, data: {label:'Start', text:'Welcome to the Insurance Wizard', onChange: updateNodeData, setAsStartNode: setAsStartNode, isStart: true, callTypes: DEFAULT_CALL_TYPES}}]);
         setEdges([]);
         setCarriers(DEFAULT_CARRIERS);
@@ -1339,7 +1434,6 @@ export default function App() {
         setCurrentNodeId(start.id);
       }
     } else {
-      // Use API for production
       fetch(`${API_URL}/load?filename=${filename}`)
         .then(res => res.json())
         .then(data => {
@@ -1407,10 +1501,8 @@ export default function App() {
         safeCopyName = safeCopyName + '.json';
     }
     
-    // Save the current playbook first
     saveToServer();
     
-    // Then duplicate it
     if (USE_LOCAL_STORAGE) {
         const originalData = localStorage.getItem(`insurance-wizard-${currentFlowName}`);
         
@@ -1429,7 +1521,6 @@ export default function App() {
             alert(`Playbook duplicated as "${safeCopyName.replace('.json', '')}"!`);
         }
     } else {
-        // API version
         fetch(`${API_URL}/copy_flow`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -1459,10 +1550,8 @@ export default function App() {
     };
     
     if (USE_LOCAL_STORAGE) {
-      // Save to localStorage for testing
       localStorage.setItem(`insurance-wizard-${currentFlowName}`, JSON.stringify(dataToSave));
       
-      // Update the flows list if this is a new flow
       const savedFlows = localStorage.getItem('insurance-wizard-flows');
       const flows = savedFlows ? JSON.parse(savedFlows) : [];
       if (!flows.includes(currentFlowName)) {
@@ -1473,7 +1562,6 @@ export default function App() {
       
       alert('Playbook saved successfully!');
     } else {
-      // Save to API for production
       fetch(`${API_URL}/save`, { 
         method: 'POST', 
         headers: {'Content-Type': 'application/json'}, 
@@ -1490,13 +1578,10 @@ export default function App() {
   const addChecklistNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'checklistNode', position: {x:250, y:150}, data: {label:'Compliance Check', items:'Did you disclose the TCPA? (yes/no)\nDid you verify date of birth?', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
   
   const deleteSelected = useCallback(() => { 
-    // Get IDs of nodes being deleted
     const deletedNodeIds = nodes.filter(n => n.selected).map(n => n.id);
     
-    // Remove selected nodes
     setNodes((nds) => nds.filter((n) => !n.selected)); 
     
-    // Remove selected edges AND any edges connected to deleted nodes
     setEdges((eds) => eds.filter((e) => 
       !e.selected && 
       !deletedNodeIds.includes(e.source) && 
@@ -1530,7 +1615,7 @@ export default function App() {
     setHistory(prev => [...prev, historyData]);
     setCurrentNodeId(targetId);
     setSelectedCarrierId(null);
-    setSelectedCallType("Quote"); // Reset to default
+    setSelectedCallType("Quote");
   };
 
   const resetWizard = () => { 
@@ -1540,7 +1625,7 @@ export default function App() {
       setSelectedCarrierId(null);
       setSelectedCallType("Quote");
       setActiveChecklistState({});
-      setMadLibsValues({}); // Reset madlibs
+      setMadLibsValues({});
   };
 
   const updateChecklistAnswer = (nodeId, itemText, value) => {
@@ -1581,7 +1666,6 @@ export default function App() {
       return report;
   };
 
-  // --- MADLIBS HELPERS ---
   const extractVariables = (template) => {
     if (!template) return [];
     const regex = /\{([^}]+)\}/g;
