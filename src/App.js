@@ -546,8 +546,27 @@ export default function App() {
       if (savedFlows) {
         setAvailableFlows(JSON.parse(savedFlows));
       } else {
-        setAvailableFlows(["default_flow.json"]);
-        localStorage.setItem('insurance-wizard-flows', JSON.stringify(["default_flow.json"]));
+        // Only initialize if truly first run (no flows exist at all)
+        // Check if any flow data exists
+        const hasAnyData = Object.keys(localStorage).some(key => key.startsWith('insurance-wizard-') && key !== 'insurance-wizard-flows' && key !== 'insurance-wizard-last-flow');
+        
+        if (hasAnyData) {
+          // Data exists but flows list is missing, rebuild it
+          const flowKeys = Object.keys(localStorage)
+            .filter(key => key.startsWith('insurance-wizard-') && key !== 'insurance-wizard-flows' && key !== 'insurance-wizard-last-flow')
+            .map(key => key.replace('insurance-wizard-', ''));
+          
+          setAvailableFlows(flowKeys.length > 0 ? flowKeys : []);
+          if (flowKeys.length > 0) {
+            localStorage.setItem('insurance-wizard-flows', JSON.stringify(flowKeys));
+          } else {
+            localStorage.setItem('insurance-wizard-flows', JSON.stringify([]));
+          }
+        } else {
+          // Truly first run, initialize with default
+          setAvailableFlows(["default_flow.json"]);
+          localStorage.setItem('insurance-wizard-flows', JSON.stringify(["default_flow.json"]));
+        }
       }
     } else {
       // Use API for production
