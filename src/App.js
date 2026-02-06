@@ -74,6 +74,14 @@ const DEFAULT_RESOURCES = [
   { id: '2', title: 'Carrier Matrix', type: 'link', content: 'https://google.com' }
 ];
 
+const DEFAULT_ISSUES = [
+  { id: '1', title: 'Customer refuses quote', category: 'Sales', keywords: 'refuse reject decline no thanks', solution: '<p><strong>Best Practice:</strong></p><ul><li>Ask what concerns they have</li><li>Address specific objections</li><li>Offer to email quote for review</li><li>Schedule callback time</li></ul>' },
+  { id: '2', title: 'Payment processing fails', category: 'Service', keywords: 'payment declined card error processing', solution: '<p><strong>Steps:</strong></p><ol><li>Verify card number and expiration</li><li>Try a different payment method</li><li>Contact carrier billing: [Number]</li><li>Offer to call back after they check with bank</li></ol>' },
+  { id: '3', title: 'Customer claims better price elsewhere', category: 'Sales', keywords: 'cheaper price better rate competition', solution: '<p><strong>Response:</strong></p><p>Ask what the other quote includes to ensure apples-to-apples comparison. Often our coverage is more comprehensive.</p><p>Highlight our service advantages and claim support.</p>' },
+];
+
+const ISSUE_CATEGORIES = ['Sales', 'Service', 'Technical', 'Billing', 'Claims', 'Policy Changes', 'Other'];
+
 const DEFAULT_QUOTE_SETTINGS = {
   coverages: [
     { id: 'bi_pd', label: 'Bodily Injury Liability', hasInput: true, placeholder: 'e.g. 100/300', isPolicyLevel: true, format: "<b>{label}</b> at {value}" },
@@ -208,6 +216,228 @@ const SettingsManager = ({ isOpen, onClose, settings, setSettings }) => {
   );
 };
 
+// --- COMPONENT: Issues Manager ---
+const IssuesManager = ({ isOpen, onClose, issues, setIssues }) => {
+  const [localIssues, setLocalIssues] = useState(issues);
+  const [expandedId, setExpandedId] = useState(null); // Track which issue is expanded
+  const [expandedCategories, setExpandedCategories] = useState({}); // Track which categories are expanded
+  
+  useEffect(() => { 
+    if (isOpen) {
+      setLocalIssues(issues);
+      // Expand first category by default
+      if (issues.length > 0) {
+        const firstCategory = issues[0].category || 'Other';
+        setExpandedCategories({ [firstCategory]: true });
+      }
+    }
+  }, [issues, isOpen]);
+  
+  if (!isOpen) return null;
+  
+  const handleSave = () => { setIssues(localIssues); onClose(); };
+  const add = () => {
+    const newIssue = { id: Date.now(), title: 'New Issue', category: 'Other', keywords: '', solution: '' };
+    setLocalIssues([...localIssues, newIssue]);
+    setExpandedId(newIssue.id);
+    setExpandedCategories(prev => ({ ...prev, 'Other': true }));
+  };
+  const remove = (id) => {
+    if (window.confirm('Delete this issue?')) {
+      setLocalIssues(localIssues.filter(i => i.id !== id));
+      if (expandedId === id) setExpandedId(null);
+    }
+  };
+  const update = (id, f, v) => {
+    setLocalIssues(prevIssues => prevIssues.map(i => i.id === id ? { ...i, [f]: v } : i));
+  };
+
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({ ...prev, [category]: !prev[category] }));
+  };
+
+  // Group issues by category
+  const groupedIssues = localIssues.reduce((acc, issue) => {
+    const cat = issue.category || 'Other';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(issue);
+    return acc;
+  }, {});
+
+  return (
+    <div style={{position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', zIndex:1200, display:'flex', alignItems:'center', justifyContent:'center'}}>
+      <div style={{background:'white', width:'800px', borderRadius:'16px', display:'flex', flexDirection:'column', maxHeight:'90vh', overflow:'hidden'}}>
+        <div style={{padding:'20px', borderBottom:`1px solid ${BORDER}`, display:'flex', justifyContent:'space-between'}}>
+          <h2 style={{margin:0, fontSize:'18px', display:'flex', alignItems:'center', gap:'8px'}}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Manage Common Issues
+          </h2>
+          <button onClick={onClose} style={{border:'none', background:'none', cursor:'pointer'}}><X size={24}/></button>
+        </div>
+        
+        <div style={{padding:'20px', overflowY:'auto', display:'flex', flexDirection:'column', gap:'10px'}}>
+          {ISSUE_CATEGORIES.map(category => {
+            const categoryIssues = groupedIssues[category] || [];
+            if (categoryIssues.length === 0) return null;
+            
+            return (
+              <div key={category} style={{border:`1px solid ${BORDER}`, borderRadius:'8px', background:'#f9fafb'}}>
+                {/* Category Header */}
+                <div 
+                  onClick={() => toggleCategory(category)}
+                  style={{
+                    padding:'12px 15px',
+                    display:'flex',
+                    justifyContent:'space-between',
+                    alignItems:'center',
+                    cursor:'pointer',
+                    background: expandedCategories[category] ? '#f3f4f6' : 'white',
+                    borderRadius:'8px',
+                    transition:'background 0.2s'
+                  }}
+                  onMouseOver={e => e.currentTarget.style.background = '#e5e7eb'}
+                  onMouseOut={e => e.currentTarget.style.background = expandedCategories[category] ? '#f3f4f6' : 'white'}
+                >
+                  <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                    <ChevronRight 
+                      size={18} 
+                      style={{
+                        transform: expandedCategories[category] ? 'rotate(90deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s'
+                      }}
+                    />
+                    <span style={{fontWeight:'bold', fontSize:'15px', color:SLATE}}>{category}</span>
+                    <span style={{fontSize:'12px', color:'#999', background:'#e5e7eb', padding:'2px 8px', borderRadius:'10px'}}>
+                      {categoryIssues.length}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Issues in Category */}
+                {expandedCategories[category] && (
+                  <div style={{padding:'10px', display:'flex', flexDirection:'column', gap:'8px'}}>
+                    {categoryIssues.map(issue => (
+                      <div key={issue.id} style={{border:`1px solid ${BORDER}`, borderRadius:'6px', background:'white'}}>
+                        {/* Issue Header - Collapsed View */}
+                        <div 
+                          onClick={() => setExpandedId(expandedId === issue.id ? null : issue.id)}
+                          style={{
+                            padding:'10px 12px',
+                            display:'flex',
+                            justifyContent:'space-between',
+                            alignItems:'center',
+                            cursor:'pointer',
+                            background: expandedId === issue.id ? '#fef3c7' : 'white',
+                            borderRadius:'6px'
+                          }}
+                        >
+                          <div style={{display:'flex', alignItems:'center', gap:'8px', flexGrow:1}}>
+                            <ChevronRight 
+                              size={14} 
+                              style={{
+                                transform: expandedId === issue.id ? 'rotate(90deg)' : 'rotate(0deg)',
+                                transition: 'transform 0.2s',
+                                color:'#92400e'
+                              }}
+                            />
+                            <span style={{fontSize:'14px', fontWeight:'500'}}>{issue.title}</span>
+                          </div>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); remove(issue.id); }}
+                            style={{color:'red', border:'none', background:'none', cursor:'pointer', padding:'4px'}}
+                            title="Delete"
+                          >
+                            <Trash2 size={14}/>
+                          </button>
+                        </div>
+
+                        {/* Issue Details - Expanded View */}
+                        {expandedId === issue.id && (
+                          <div style={{padding:'15px', borderTop:`1px solid ${BORDER}`}}>
+                            <div style={{display:'flex', gap:'10px', marginBottom:'12px'}}>
+                              <div style={{flexGrow:1}}>
+                                <label style={{fontSize:'11px', fontWeight:'bold', color:'#999', display:'block', marginBottom:'4px'}}>
+                                  TITLE
+                                </label>
+                                <input 
+                                  value={issue.title || ''} 
+                                  onChange={e => update(issue.id, 'title', e.target.value)} 
+                                  style={{width:'100%', padding:'8px', border:`1px solid ${BORDER}`, borderRadius:'4px', fontSize:'14px'}} 
+                                  placeholder="Issue Title"
+                                />
+                              </div>
+                              <div style={{width:'200px'}}>
+                                <label style={{fontSize:'11px', fontWeight:'bold', color:'#999', display:'block', marginBottom:'4px'}}>
+                                  CATEGORY
+                                </label>
+                                <select
+                                  value={issue.category || 'Other'}
+                                  onChange={e => update(issue.id, 'category', e.target.value)}
+                                  style={{width:'100%', padding:'8px', border:`1px solid ${BORDER}`, borderRadius:'4px', fontSize:'14px'}}
+                                >
+                                  {ISSUE_CATEGORIES.map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                            
+                            <div style={{marginBottom:'12px'}}>
+                              <label style={{fontSize:'11px', fontWeight:'bold', color:'#999', display:'block', marginBottom:'4px'}}>
+                                SEARCH KEYWORDS (space-separated)
+                              </label>
+                              <input 
+                                value={issue.keywords || ''} 
+                                onChange={e => update(issue.id, 'keywords', e.target.value)} 
+                                style={{width:'100%', padding:'8px', border:`1px solid ${BORDER}`, borderRadius:'4px', fontSize:'13px'}} 
+                                placeholder="e.g., payment decline card error"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label style={{fontSize:'11px', fontWeight:'bold', color:'#999', display:'block', marginBottom:'4px'}}>
+                                SOLUTION (HTML supported)
+                              </label>
+                              <div style={{minHeight: '200px'}}>
+                                <ReactQuill 
+                                  theme="snow" 
+                                  value={issue.solution || ''} 
+                                  onChange={(content, delta, source, editor) => {
+                                    if (source === 'user') {
+                                      update(issue.id, 'solution', content);
+                                    }
+                                  }}
+                                  style={{background:'white', minHeight:'150px'}}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          
+          <button onClick={add} className="btn-secondary" style={{width:'100%', padding:'12px', marginTop:'10px'}}>
+            + Add New Issue
+          </button>
+        </div>
+        
+        <div style={{padding:'20px', borderTop:`1px solid ${BORDER}`, display:'flex', justifyContent:'flex-end'}}>
+          <button className="btn-primary" onClick={handleSave} style={{background: JERRY_PINK, border:'none'}}>Save Changes</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- COMPONENT: Resource Sidebar ---
+
 // --- COMPONENT: Resource Sidebar ---
 const ResourceManager = ({ isOpen, onClose, resources, setResources }) => {
   const [localRes, setLocalRes] = useState(resources);
@@ -241,10 +471,38 @@ const ResourceManager = ({ isOpen, onClose, resources, setResources }) => {
   );
 };
 
-const ResourceSidebar = ({ resources, setResources }) => {
+const ResourceSidebar = ({ resources, setResources, issues, setIssues }) => {
   const [expanded, setExpanded] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
+  const [issuesManagerOpen, setIssuesManagerOpen] = useState(false);
   const [activeResource, setActiveResource] = useState(null);
+  const [issuesExpanded, setIssuesExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeIssue, setActiveIssue] = useState(null);
+  const [expandedIssueCategories, setExpandedIssueCategories] = useState({});
+
+  // Filter and group issues
+  const filteredIssues = issues.filter(issue => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      issue.title.toLowerCase().includes(query) ||
+      issue.keywords.toLowerCase().includes(query) ||
+      (issue.category && issue.category.toLowerCase().includes(query))
+    );
+  });
+
+  // Group filtered issues by category
+  const groupedIssues = filteredIssues.reduce((acc, issue) => {
+    const cat = issue.category || 'Other';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(issue);
+    return acc;
+  }, {});
+
+  const toggleIssueCategory = (category) => {
+    setExpandedIssueCategories(prev => ({ ...prev, [category]: !prev[category] }));
+  };
 
   return (
     <>
@@ -265,13 +523,133 @@ const ResourceSidebar = ({ resources, setResources }) => {
             </div>
           ))}
         </div>
+
+        {/* Common Issues Section */}
+        <div style={{borderTop: `2px solid ${BORDER}`, background: '#fef3c7'}}>
+          <div 
+            onClick={() => setIssuesExpanded(!issuesExpanded)}
+            style={{
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: expanded ? 'space-between' : 'center',
+              padding: expanded ? '12px 20px' : '12px 0',
+              cursor: 'pointer',
+              color: '#92400e'
+            }}
+          >
+            {expanded ? (
+              <>
+                <div style={{display:'flex', alignItems:'center', gap:'8px', fontWeight:'bold', fontSize:'13px'}}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  Common Issues
+                </div>
+                <ChevronRight size={16} style={{transform: issuesExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s'}}/>
+              </>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            )}
+          </div>
+
+          {issuesExpanded && expanded && (
+            <div style={{padding: '0 15px 15px', maxHeight: '300px', overflowY: 'auto'}}>
+              <input 
+                type="text"
+                placeholder="Search issues..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '6px 10px',
+                  border: `1px solid #fbbf24`,
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  marginBottom: '8px'
+                }}
+              />
+              <div style={{display: 'flex', flexDirection: 'column', gap: '4px'}}>
+                {Object.keys(groupedIssues).length > 0 ? (
+                  Object.entries(groupedIssues).map(([category, categoryIssues]) => (
+                    <div key={category} style={{marginBottom: '4px'}}>
+                      {/* Category Header */}
+                      <div 
+                        onClick={() => toggleIssueCategory(category)}
+                        style={{
+                          padding: '6px 8px',
+                          background: '#fbbf24',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          fontWeight: 'bold',
+                          color: '#78350f',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <span>{category} ({categoryIssues.length})</span>
+                        <ChevronRight 
+                          size={12} 
+                          style={{
+                            transform: expandedIssueCategories[category] ? 'rotate(90deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s'
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Issues in Category */}
+                      {expandedIssueCategories[category] && (
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', marginLeft: '8px'}}>
+                          {categoryIssues.map(issue => (
+                            <div 
+                              key={issue.id}
+                              onClick={() => setActiveIssue(issue)}
+                              style={{
+                                padding: '6px 8px',
+                                background: 'white',
+                                borderRadius: '4px',
+                                border: '1px solid #fbbf24',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                color: '#92400e',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseOver={(e) => e.currentTarget.style.background = '#fffbeb'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'white'}
+                            >
+                              {issue.title}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div style={{fontSize: '11px', color: '#92400e', fontStyle: 'italic', textAlign: 'center', padding: '10px'}}>
+                    No issues found
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div style={{padding: '10px', borderTop: `1px solid ${BORDER}`}}>
-          <button onClick={() => setManagerOpen(true)} style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: expanded ? 'flex-start' : 'center', background: 'transparent', border: 'none', borderRadius: '6px', color: SLATE, padding: '8px', cursor: 'pointer'}} onMouseOver={e=>e.currentTarget.style.color=JERRY_PINK} onMouseOut={e=>e.currentTarget.style.color=SLATE}>
-            <Edit size={16}/>{expanded && <span style={{marginLeft: '10px'}}>Edit Resources</span>}
+          <button onClick={() => setManagerOpen(true)} style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: expanded ? 'flex-start' : 'center', background: 'transparent', border: 'none', borderRadius: '6px', color: SLATE, padding: '8px', cursor: 'pointer', marginBottom: '4px'}} onMouseOver={e=>e.currentTarget.style.color=JERRY_PINK} onMouseOut={e=>e.currentTarget.style.color=SLATE}>
+            <Edit size={16}/>{expanded && <span style={{marginLeft: '10px', fontSize:'13px'}}>Edit Resources</span>}
+          </button>
+          <button onClick={() => setIssuesManagerOpen(true)} style={{width: '100%', display: 'flex', alignItems: 'center', justifyContent: expanded ? 'flex-start' : 'center', background: 'transparent', border: 'none', borderRadius: '6px', color: '#92400e', padding: '8px', cursor: 'pointer'}} onMouseOver={e=>e.currentTarget.style.color='#78350f'} onMouseOut={e=>e.currentTarget.style.color='#92400e'}>
+            <Edit size={16}/>{expanded && <span style={{marginLeft: '10px', fontSize:'13px'}}>Edit Issues</span>}
           </button>
         </div>
       </div>
       <ResourceManager isOpen={managerOpen} onClose={() => setManagerOpen(false)} resources={resources} setResources={setResources} />
+      <IssuesManager isOpen={issuesManagerOpen} onClose={() => setIssuesManagerOpen(false)} issues={issues} setIssues={setIssues} />
+      
+      {/* Resource Popup */}
       {activeResource && (
         <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
           <div style={{position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)'}} onClick={() => setActiveResource(null)}></div>
@@ -280,6 +658,25 @@ const ResourceSidebar = ({ resources, setResources }) => {
               <h3 style={{margin: 0, fontSize: '18px', color: JERRY_PINK}}>{activeResource.title}</h3><button onClick={() => setActiveResource(null)} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20}/></button>
             </div>
             <div style={{flexGrow: 1, overflowY: 'auto', fontSize: '14px', lineHeight: '1.6'}} dangerouslySetInnerHTML={{__html: activeResource.content}}></div>
+          </div>
+        </div>
+      )}
+
+      {/* Issue Popup */}
+      {activeIssue && (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+          <div style={{position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)'}} onClick={() => setActiveIssue(null)}></div>
+          <div style={{width: '500px', maxHeight: '70vh', background: 'white', borderRadius: '12px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', padding: '20px', pointerEvents: 'auto', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '2px solid #fbbf24'}}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: `2px solid #fbbf24`, paddingBottom: '10px'}}>
+              <h3 style={{margin: 0, fontSize: '18px', color: '#92400e', display: 'flex', alignItems: 'center', gap: '8px'}}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                {activeIssue.title}
+              </h3>
+              <button onClick={() => setActiveIssue(null)} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20}/></button>
+            </div>
+            <div style={{flexGrow: 1, overflowY: 'auto', fontSize: '14px', lineHeight: '1.6'}} dangerouslySetInnerHTML={{__html: activeIssue.solution}}></div>
           </div>
         </div>
       )}
@@ -793,6 +1190,7 @@ export default function App() {
   const [isCallTypesModalOpen, setCallTypesModalOpen] = useState(false); // New modal
   const [showAdmin, setShowAdmin] = useState(false);
   const [resources, setResources] = useState(DEFAULT_RESOURCES);
+  const [issues, setIssues] = useState(DEFAULT_ISSUES); // Common issues
 
   // Playbook State (Multiple Flows)
   const [availableFlows, setAvailableFlows] = useState([]);
@@ -917,6 +1315,7 @@ export default function App() {
           setResources(data.resources || DEFAULT_RESOURCES);
           setQuoteSettings(data.quoteSettings || DEFAULT_QUOTE_SETTINGS);
           setCallTypes(data.callTypes || DEFAULT_CALL_TYPES);
+          setIssues(data.issues || DEFAULT_ISSUES);
           setHistory([]);
           setActiveChecklistState({});
           const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
@@ -961,6 +1360,7 @@ export default function App() {
           setResources(data.resources || DEFAULT_RESOURCES);
           setQuoteSettings(data.quoteSettings || DEFAULT_QUOTE_SETTINGS);
           setCallTypes(data.callTypes || DEFAULT_CALL_TYPES);
+          setIssues(data.issues || DEFAULT_ISSUES);
           setHistory([]);
           setActiveChecklistState({});
           const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
@@ -1054,7 +1454,8 @@ export default function App() {
       carriers,
       quoteSettings,
       resources,
-      callTypes
+      callTypes,
+      issues
     };
     
     if (USE_LOCAL_STORAGE) {
@@ -1275,7 +1676,7 @@ export default function App() {
         loadFlowData={loadFlowData}
       />
 
-      <ResourceSidebar resources={resources} setResources={setResources} />
+      <ResourceSidebar resources={resources} setResources={setResources} issues={issues} setIssues={setIssues} />
 
       <div className="wizard-pane" style={{
           flex: showAdmin ? '0 0 400px' : '1', 
