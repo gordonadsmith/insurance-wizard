@@ -183,7 +183,7 @@ const QuoteBuilderForm = ({ closingQuestion, settings = DEFAULT_QUOTE_SETTINGS, 
       </div>
       <div style={{marginTop:'4px'}}>
         <label style={{fontSize:'11px', fontWeight:'bold', color: JERRY_PINK}}>WORD TRACK:</label>
-        <div style={{background:'white', border:`2px solid ${JERRY_PINK}`, borderRadius:'8px', padding:'12px', fontSize:'15px', lineHeight:'1.6', wordWrap: 'break-word', whiteSpace: 'normal'}} dangerouslySetInnerHTML={{__html: generateScript()}}></div>
+        <div style={{background:'white', border:`2px solid ${JERRY_PINK}`, borderRadius:'8px', padding:'12px', fontSize:'15px', lineHeight:'1.6', wordWrap: 'break-word', whiteSpace: 'normal', wordBreak: 'normal', overflowWrap: 'break-word'}} dangerouslySetInnerHTML={{__html: cleanHTML(generateScript())}}></div>
       </div>
     </div>
   );
