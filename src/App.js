@@ -16,7 +16,7 @@ import jerryLogo from './jerry_logo.png';
 // ============================================================================
 
 const API_URL = "/api"; 
-const USE_LOCAL_STORAGE = true;
+const USE_LOCAL_STORAGE = false;
 
 const JERRY_PINK = "#E9406A";
 const JERRY_BG = "#FDF2F4"; 
