@@ -16,7 +16,7 @@ import jerryLogo from './jerry_logo.png';
 // ============================================================================
 
 const API_URL = "/api"; 
-const USE_LOCAL_STORAGE = false;
+const USE_LOCAL_STORAGE = true;
 
 const JERRY_PINK = "#E9406A";
 const JERRY_BG = "#FDF2F4"; 
@@ -646,8 +646,8 @@ const ResourceSidebar = ({ resources, setResources, issues, setIssues }) => {
       {/* Resource Popup */}
       {activeResource && (
         <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-          <div style={{position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)'}} onClick={() => setActiveResource(null)}></div>
-          <div style={{width: '500px', maxHeight: '70vh', background: 'white', borderRadius: '12px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', padding: '20px', pointerEvents: 'auto', display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
+          <div style={{position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)'}} onClick={() => setActiveResource(null)}></div>
+          <div style={{position: 'relative', width: '500px', maxHeight: '70vh', background: 'white', borderRadius: '12px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', padding: '20px', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 2001}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: `1px solid ${BORDER}`, paddingBottom: '10px'}}>
               <h3 style={{margin: 0, fontSize: '18px', color: JERRY_PINK}}>{activeResource.title}</h3><button onClick={() => setActiveResource(null)} style={{background: 'none', border: 'none', cursor: 'pointer'}}><X size={20}/></button>
             </div>
@@ -659,8 +659,8 @@ const ResourceSidebar = ({ resources, setResources, issues, setIssues }) => {
       {/* Issue Popup */}
       {activeIssue && (
         <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-          <div style={{position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)'}} onClick={() => setActiveIssue(null)}></div>
-          <div style={{width: '500px', maxHeight: '70vh', background: 'white', borderRadius: '12px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', padding: '20px', pointerEvents: 'auto', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '2px solid #fbbf24'}}>
+          <div style={{position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)'}} onClick={() => setActiveIssue(null)}></div>
+          <div style={{position: 'relative', width: '500px', maxHeight: '70vh', background: 'white', borderRadius: '12px', boxShadow: '0 20px 50px rgba(0,0,0,0.3)', padding: '20px', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '2px solid #fbbf24', zIndex: 2001}}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: `2px solid #fbbf24`, paddingBottom: '10px'}}>
               <h3 style={{margin: 0, fontSize: '18px', color: '#92400e', display: 'flex', alignItems: 'center', gap: '8px'}}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
