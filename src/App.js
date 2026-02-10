@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import ReactFlow, { 
   addEdge, Background, Controls, useNodesState, useEdgesState, Handle, Position 
 } from 'reactflow';
@@ -1319,6 +1319,8 @@ export default function App() {
   const [madLibsValues, setMadLibsValues] = useState({});
   
   const [activeChecklistState, setActiveChecklistState] = useState({});
+  const userScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef(null);
 
   const updateNodeData = useCallback((id, newData) => {
     setNodes((nds) => nds.map((node) => node.id === id ? { ...node, data: { ...newData, onChange: updateNodeData, setAsStartNode: setAsStartNode, callTypes } } : node));
@@ -1591,6 +1593,39 @@ export default function App() {
   const getCurrentNode = () => nodes.find(n => n.id === currentNodeId);
   const getOptions = () => edges.filter(e => e.source === currentNodeId).map(e => ({ label: e.label || "Next", targetId: e.target }));
 
+  const handleHistoryClick = (index) => {
+    // Navigate back to a previous step
+    const newHistory = history.slice(0, index);
+    setHistory(newHistory);
+    
+    // Set current node to the step that was clicked
+    const clickedStep = history[index];
+    setCurrentNodeId(clickedStep.id);
+    
+    // Restore the state from that step if needed
+    if (clickedStep.type === 'carrierNode' && clickedStep.carrierInfo) {
+      setSelectedCarrierId(clickedStep.carrierInfo.id);
+      setSelectedCallType(clickedStep.carrierInfo.selectedCallType || "Quote");
+    } else {
+      setSelectedCarrierId(null);
+      setSelectedCallType("Quote");
+    }
+    
+    // Scroll to the clicked item
+    setTimeout(() => {
+      const wizardContent = document.querySelector('.wizard-content');
+      if (wizardContent) {
+        const historyItems = wizardContent.querySelectorAll('.history-item');
+        if (historyItems[index]) {
+          historyItems[index].scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }
+      }
+    }, 100);
+  };
+
   const handleOptionClick = (targetId, label) => {
     const current = getCurrentNode();
     let historyData = { ...current, selectedOption: label };
@@ -1616,6 +1651,24 @@ export default function App() {
     setCurrentNodeId(targetId);
     setSelectedCarrierId(null);
     setSelectedCallType("Quote");
+    
+    // Auto-scroll to show the new step only if user hasn't manually scrolled recently
+    setTimeout(() => {
+      const wizardContent = document.querySelector('.wizard-content');
+      if (wizardContent && !userScrollingRef.current) {
+        const currentScrollTop = wizardContent.scrollTop;
+        const scrollHeight = wizardContent.scrollHeight;
+        const clientHeight = wizardContent.clientHeight;
+        
+        // Only auto-scroll if we're near the bottom (within 200px)
+        if (scrollHeight - currentScrollTop - clientHeight < 200) {
+          wizardContent.scrollTo({
+            top: wizardContent.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
+      }
+    }, 100);
   };
 
   const resetWizard = () => { 
@@ -1802,7 +1855,18 @@ export default function App() {
         
         <div className="wizard-content" style={{background: 'white', overflowX: 'hidden'}}>
           {history.map((step, idx) => (
-            <div key={idx} style={{opacity:0.6, marginBottom:'20px'}}>
+            <div 
+              key={idx} 
+              onClick={() => handleHistoryClick(idx)}
+              style={{
+                opacity: 0.6, 
+                marginBottom: '20px',
+                cursor: 'pointer',
+                transition: 'opacity 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
+            >
               <div className="bubble" style={{background: '#F3F4F6'}}>
                 <div className="bubble-label" style={{color: SLATE}}>{step.data.label}</div>
                 {step.type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE, width: '100%', minWidth: 0, wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'normal', whiteSpace: 'normal'}} dangerouslySetInnerHTML={{__html: cleanHTML(step.data.text)}}></div>}
