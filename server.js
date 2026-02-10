@@ -15,7 +15,7 @@ app.use(express.static(path.join(__dirname, 'build')));
 
 // Configuration
 const PLAYBOOKS_DIR = path.join(__dirname, 'playbooks');
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 // Ensure playbooks directory exists
 async function ensureDirectories() {
