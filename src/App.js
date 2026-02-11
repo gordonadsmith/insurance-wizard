@@ -1203,7 +1203,10 @@ const ScriptNode = ({ id, data }) => (
     <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
         <div style={{fontSize: '10px', color: data.isStart ? JERRY_PINK : '#999', fontWeight: data.isStart ? 'bold' : 'normal', textTransform:'uppercase'}}>{data.isStart ? 'START STEP' : 'Script Step'}</div>
-        <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+        <div style={{display: 'flex', gap: '4px', alignItems: 'center'}}>
+          <Copy size={12} style={{cursor:'pointer', color: '#666'}} onClick={() => data.duplicateNode(id)} title="Duplicate Node"/>
+          <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+        </div>
     </div>
     <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
     <div className="nodrag" style={{background:'white'}}>
@@ -1220,7 +1223,10 @@ const CarrierNode = ({ id, data }) => {
       <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
           <div style={{display:'flex', alignItems:'center', gap:'6px'}}><Building2 size={14} color="#8b5cf6"/><span style={{fontSize:'11px', color:'#8b5cf6', fontWeight:'800'}}>CARRIER LOOKUP</span></div>
-          <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+          <div style={{display: 'flex', gap: '4px', alignItems: 'center'}}>
+            <Copy size={12} style={{cursor:'pointer', color: '#666'}} onClick={() => data.duplicateNode(id)} title="Duplicate Node"/>
+            <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+          </div>
       </div>
       <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
       <select 
@@ -1242,7 +1248,10 @@ const QuoteNode = ({ id, data }) => (
     <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
         <div style={{display:'flex', alignItems:'center', gap:'6px'}}><DollarSign size={14} color={JERRY_PINK}/><span style={{fontSize:'11px', color:JERRY_PINK, fontWeight:'800'}}>QUOTE BUILDER</span></div>
-        <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+        <div style={{display: 'flex', gap: '4px', alignItems: 'center'}}>
+          <Copy size={12} style={{cursor:'pointer', color: '#666'}} onClick={() => data.duplicateNode(id)} title="Duplicate Node"/>
+          <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+        </div>
     </div>
     <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
     <textarea className="nodrag node-input-text" value={data.closingQuestion} onChange={(evt) => data.onChange(id, { ...data, closingQuestion: evt.target.value })} placeholder="Closing Question (Optional)..." rows={2}/>
@@ -1255,7 +1264,10 @@ const ChecklistNode = ({ id, data }) => (
     <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
         <div style={{display:'flex', alignItems:'center', gap:'6px'}}><ClipboardCheck size={14} color={COMPLIANCE_ORANGE}/><span style={{fontSize:'11px', color:COMPLIANCE_ORANGE, fontWeight:'800'}}>COMPLIANCE CHECK</span></div>
-        <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+        <div style={{display: 'flex', gap: '4px', alignItems: 'center'}}>
+          <Copy size={12} style={{cursor:'pointer', color: '#666'}} onClick={() => data.duplicateNode(id)} title="Duplicate Node"/>
+          <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+        </div>
     </div>
     <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
     <textarea className="nodrag node-input-text" style={{minHeight: '80px', fontFamily: 'monospace'}} value={data.items} onChange={(evt) => data.onChange(id, { ...data, items: evt.target.value })} placeholder="Enter one question per line... End with (yes/no) for radio buttons" />
@@ -1268,7 +1280,10 @@ const MadLibsNode = ({ id, data }) => (
     <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
         <div style={{display:'flex', alignItems:'center', gap:'6px'}}><Edit size={14} color="#10b981"/><span style={{fontSize:'11px', color:'#10b981', fontWeight:'800'}}>WORD TRACK</span></div>
-        <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+        <div style={{display: 'flex', gap: '4px', alignItems: 'center'}}>
+          <Copy size={12} style={{cursor:'pointer', color: '#666'}} onClick={() => data.duplicateNode(id)} title="Duplicate Node"/>
+          <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+        </div>
     </div>
     <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
     <textarea 
@@ -1323,8 +1338,70 @@ export default function App() {
   const scrollTimeoutRef = useRef(null);
 
   const updateNodeData = useCallback((id, newData) => {
-    setNodes((nds) => nds.map((node) => node.id === id ? { ...node, data: { ...newData, onChange: updateNodeData, setAsStartNode: setAsStartNode, callTypes } } : node));
+    setNodes((nds) => nds.map((node) => {
+      if (node.id === id) {
+        return {
+          ...node,
+          data: {
+            ...newData,
+            onChange: updateNodeData,
+            setAsStartNode: setAsStartNode,
+            callTypes
+          }
+        };
+      }
+      return node;
+    }));
   }, [setNodes, callTypes]);
+  
+  // Duplicate node function
+  const duplicateNodeFunc = (nodeId) => {
+    setNodes((nds) => {
+      const nodeToDuplicate = nds.find(n => n.id === nodeId);
+      if (!nodeToDuplicate) return nds;
+      
+      const newId = (Math.random()*10000).toFixed(0);
+      const newNode = {
+        ...nodeToDuplicate,
+        id: newId,
+        position: {
+          x: nodeToDuplicate.position.x + 50,
+          y: nodeToDuplicate.position.y + 50
+        },
+        data: {
+          ...nodeToDuplicate.data,
+          label: nodeToDuplicate.data.label + ' (Copy)',
+          isStart: false,
+          onChange: updateNodeData,
+          setAsStartNode: setAsStartNode,
+          duplicateNode: duplicateNodeFunc,
+          callTypes: nodeToDuplicate.data.callTypes
+        },
+        selected: false
+      };
+      
+      return [...nds, newNode];
+    });
+  };
+  
+  // Update all existing nodes with the duplicate function when nodes load
+  useEffect(() => {
+    setNodes((nds) => nds.map((node) => {
+      // Only update if the node doesn't already have the duplicate function
+      if (!node.data.duplicateNode) {
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            duplicateNode: duplicateNodeFunc,
+            onChange: updateNodeData,
+            setAsStartNode: setAsStartNode
+          }
+        };
+      }
+      return node;
+    }));
+  }, [nodes.length]); // Run when nodes are added/removed
 
   const setAsStartNode = useCallback((id) => {
     setNodes((nds) => nds.map((node) => ({
@@ -1573,11 +1650,11 @@ export default function App() {
   };
 
   const onConnect = useCallback((params) => { const label = window.prompt("Choice label?", "Next"); setEdges((eds) => addEdge({ ...params, label: label || "Next" }, eds)); }, [setEdges]);
-  const addNewNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'scriptNode', position: {x:250, y:150}, data: {label:'Step', text:'', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
-  const addCarrierNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'carrierNode', position: {x:250, y:150}, data: {label:'Select Carrier', onChange: updateNodeData, setAsStartNode: setAsStartNode, callTypes, defaultCallType: callTypes[0] || "Quote"}}]);
-  const addQuoteNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'quoteNode', position: {x:250, y:150}, data: {label:'Present Quote', closingQuestion:'How does that price sound?', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
-  const addMadLibsNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'madLibsNode', position: {x:250, y:150}, data: {label:'Word Track', template:'', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
-  const addChecklistNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'checklistNode', position: {x:250, y:150}, data: {label:'Compliance Check', items:'Did you disclose the TCPA? (yes/no)\nDid you verify date of birth?', onChange: updateNodeData, setAsStartNode: setAsStartNode}}]);
+  const addNewNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'scriptNode', position: {x:250, y:150}, data: {label:'Step', text:'', onChange: updateNodeData, setAsStartNode: setAsStartNode, duplicateNode: duplicateNodeFunc}}]);
+  const addCarrierNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'carrierNode', position: {x:250, y:150}, data: {label:'Select Carrier', onChange: updateNodeData, setAsStartNode: setAsStartNode, duplicateNode: duplicateNodeFunc, callTypes, defaultCallType: callTypes[0] || "Quote"}}]);
+  const addQuoteNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'quoteNode', position: {x:250, y:150}, data: {label:'Present Quote', closingQuestion:'How does that price sound?', onChange: updateNodeData, setAsStartNode: setAsStartNode, duplicateNode: duplicateNodeFunc}}]);
+  const addMadLibsNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'madLibsNode', position: {x:250, y:150}, data: {label:'Word Track', template:'', onChange: updateNodeData, setAsStartNode: setAsStartNode, duplicateNode: duplicateNodeFunc}}]);
+  const addChecklistNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'checklistNode', position: {x:250, y:150}, data: {label:'Compliance Check', items:'Did you disclose the TCPA? (yes/no)\nDid you verify date of birth?', onChange: updateNodeData, setAsStartNode: setAsStartNode, duplicateNode: duplicateNodeFunc}}]);
   
   const deleteSelected = useCallback(() => { 
     const deletedNodeIds = nodes.filter(n => n.selected).map(n => n.id);
@@ -1853,10 +1930,26 @@ export default function App() {
           <button className="btn btn-secondary" onClick={resetWizard} style={{color: SLATE}}><RefreshCw size={16} /></button>
         </div>
         
-        <div className="wizard-content" style={{background: 'white', overflowX: 'hidden'}}>
+        <div 
+          className="wizard-content" 
+          style={{background: 'white', overflowX: 'hidden'}}
+          onScroll={(e) => {
+            // Track when user manually scrolls
+            userScrollingRef.current = true;
+            
+            // Reset the flag after 2 seconds of no scrolling
+            if (scrollTimeoutRef.current) {
+              clearTimeout(scrollTimeoutRef.current);
+            }
+            scrollTimeoutRef.current = setTimeout(() => {
+              userScrollingRef.current = false;
+            }, 2000);
+          }}
+        >
           {history.map((step, idx) => (
             <div 
               key={idx} 
+              className="history-item"
               onClick={() => handleHistoryClick(idx)}
               style={{
                 opacity: 0.6, 
