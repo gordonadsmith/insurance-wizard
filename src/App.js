@@ -1089,21 +1089,31 @@ const CarrierManager = ({ isOpen, onClose, carriers, setCarriers, callTypes }) =
   
   if (!isOpen) return null;
   
-  const handleSelect = (id) => { 
-    setSelectedId(id); 
-    const carrier = carriers[id];
-    if (!carrier.scripts) {
-      carrier.scripts = {};
-      callTypes.forEach(type => {
-        carrier.scripts[type] = carrier.script || "";
-      });
+  const handleSelect = (id) => {
+    setSelectedId(id);
+    
+    // Load carrier data immediately when selected
+    if (carriers && carriers[id]) {
+      const carrier = { ...carriers[id] };
+      
+      // Initialize scripts object if needed
+      if (!carrier.scripts) {
+        carrier.scripts = {};
+        if (callTypes && Array.isArray(callTypes)) {
+          callTypes.forEach(type => {
+            carrier.scripts[type] = carrier.script || "";
+          });
+        }
+      }
+      
+      setEditForm(carrier);
     }
-    setEditForm({ ...carrier }); 
   };
   
   const handleSave = () => { 
     setCarriers(prev => ({ ...prev, [editForm.id]: editForm })); 
     setSelectedId(null); 
+    setEditForm(null);
   };
   
   const handleDelete = () => { 
@@ -1111,7 +1121,8 @@ const CarrierManager = ({ isOpen, onClose, carriers, setCarriers, callTypes }) =
       const n = { ...carriers }; 
       delete n[selectedId]; 
       setCarriers(n); 
-      setSelectedId(null); 
+      setSelectedId(null);
+      setEditForm(null);
     }
   };
   
@@ -1176,6 +1187,7 @@ const CarrierManager = ({ isOpen, onClose, carriers, setCarriers, callTypes }) =
                       <div style={{fontSize:'11px', color:'#999', marginBottom:'8px'}}>Script for <strong>{activeCallType}</strong> calls:</div>
                       <div style={{flexGrow:1, minHeight:'250px'}}>
                         <ReactQuill 
+                          key={`${selectedId}-${activeCallType}`}
                           theme="snow" 
                           value={editForm.scripts?.[activeCallType] || ""} 
                           onChange={(val) => updateScriptForCallType(activeCallType, val)} 
