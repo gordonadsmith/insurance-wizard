@@ -6,7 +6,7 @@ import 'reactflow/dist/style.css';
 import ReactQuill from 'react-quill-new';
 import 'react-quill-new/dist/quill.snow.css';   
 import 'react-quill-new/dist/quill.bubble.css'; 
-import { Plus, RefreshCw, ChevronRight, Trash2, Save, Building2, X, DollarSign, Settings, CheckSquare, Copy, Layers, Lock, Unlock, Flag, BookOpen, Link as LinkIcon, FileText, Edit, FolderOpen, ClipboardCheck, FolderCog, Pencil, Upload, Download } from 'lucide-react';
+import { Plus, RefreshCw, ChevronRight, Trash2, Save, Building2, X, DollarSign, Settings, CheckSquare, Copy, Layers, Lock, Unlock, Flag, BookOpen, Link as LinkIcon, FileText, Edit, FolderOpen, ClipboardCheck, FolderCog, Pencil, Upload, Download, GitBranch } from 'lucide-react';
 import './App.css';
 
 import jerryLogo from './jerry_logo.png'; 
@@ -1843,6 +1843,100 @@ export default function App() {
     }
   };
 
+  const autoLayoutNodes = () => {
+    if (nodes.length === 0) return;
+    
+    // Find the start node
+    const startNode = nodes.find(n => n.data && n.data.isStart) || nodes.find(n => n.id === '1') || nodes[0];
+    if (!startNode) return;
+    
+    // Configuration
+    const HORIZONTAL_SPACING = 300; // Space between columns
+    const VERTICAL_SPACING = 150;   // Space between nodes in same column
+    const START_X = 100;
+    const START_Y = 100;
+    
+    // Track node positions by level
+    const levels = new Map(); // level -> array of node IDs
+    const nodePositions = new Map(); // nodeId -> { x, y, level }
+    const visited = new Set();
+    
+    // Build level structure (BFS for proper horizontal layout)
+    const buildLevels = () => {
+      const queue = [{ id: startNode.id, level: 0 }];
+      visited.add(startNode.id);
+      
+      while (queue.length > 0) {
+        const { id, level } = queue.shift();
+        
+        if (!levels.has(level)) {
+          levels.set(level, []);
+        }
+        levels.get(level).push(id);
+        
+        // Get children
+        const childEdges = edges.filter(e => e.source === id);
+        childEdges.forEach(edge => {
+          if (!visited.has(edge.target)) {
+            visited.add(edge.target);
+            queue.push({ id: edge.target, level: level + 1 });
+          }
+        });
+      }
+    };
+    
+    // Calculate positions
+    const calculatePositions = () => {
+      levels.forEach((nodeIds, level) => {
+        const x = START_X + (level * HORIZONTAL_SPACING);
+        
+        nodeIds.forEach((nodeId, index) => {
+          const y = START_Y + (index * VERTICAL_SPACING);
+          nodePositions.set(nodeId, { x, y, level });
+        });
+      });
+      
+      // Handle orphan nodes (not connected to start)
+      nodes.forEach(node => {
+        if (!nodePositions.has(node.id)) {
+          // Place orphans at the bottom
+          const orphanY = START_Y + (levels.get(0)?.length || 0) * VERTICAL_SPACING + 200;
+          nodePositions.set(node.id, { x: START_X, y: orphanY, level: -1 });
+        }
+      });
+    };
+    
+    // Apply positions to nodes
+    const applyLayout = () => {
+      const updatedNodes = nodes.map(node => {
+        const pos = nodePositions.get(node.id);
+        if (pos) {
+          return {
+            ...node,
+            position: { x: pos.x, y: pos.y }
+          };
+        }
+        return node;
+      });
+      
+      setNodes(updatedNodes);
+    };
+    
+    // Execute layout
+    buildLevels();
+    calculatePositions();
+    applyLayout();
+    
+    // Show success message
+    const totalLevels = levels.size;
+    const totalOrphans = nodes.length - visited.size;
+    let message = `Layout complete! Organized ${nodes.length} nodes into ${totalLevels} levels.`;
+    if (totalOrphans > 0) {
+      message += `\n${totalOrphans} orphan node(s) placed at bottom.`;
+    }
+    alert(message);
+  };
+
   const onConnect = useCallback((params) => { const label = window.prompt("Choice label?", "Next"); setEdges((eds) => addEdge({ ...params, label: label || "Next" }, eds)); }, [setEdges]);
   const addNewNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'scriptNode', position: {x:250, y:150}, data: {label:'Step', text:'', onChange: updateNodeData, setAsStartNode: setAsStartNode, duplicateNode: duplicateNodeFunc}}]);
   const addCarrierNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'carrierNode', position: {x:250, y:150}, data: {label:'Select Carrier', onChange: updateNodeData, setAsStartNode: setAsStartNode, duplicateNode: duplicateNodeFunc, callTypes, defaultCallType: callTypes[0] || "Quote"}}]);
@@ -2317,6 +2411,7 @@ export default function App() {
             <button className="btn btn-secondary" onClick={() => setCarrierModalOpen(true)} title="Carriers"><Building2 size={16}/></button>
             <button className="btn btn-secondary" onClick={() => setCallTypesModalOpen(true)} title="Manage Call Types" style={{color:'#8b5cf6'}}><Layers size={16}/></button>
             <button className="btn btn-secondary" onClick={exportPlaybookAsText} title="Export for Legal Review" style={{color:'#10b981'}}><FileText size={16}/></button>
+            <button className="btn btn-secondary" onClick={autoLayoutNodes} title="Auto-Organize Playbook" style={{color:'#3b82f6'}}><GitBranch size={16}/></button>
             <div style={{width:'1px', height:'20px', background: BORDER, margin:'0 4px'}}></div>
             <button className="btn btn-secondary" onClick={addNewNode} title="Add Script"><Plus size={16}/></button>
             <button className="btn btn-secondary" onClick={addMadLibsNode} style={{color:'#10b981'}} title="Add Word Track"><Edit size={16}/></button>
