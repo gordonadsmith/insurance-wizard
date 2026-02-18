@@ -1673,79 +1673,181 @@ export default function App() {
 
   const exportPlaybookAsText = () => {
     try {
-      const output = [
-        '================================================================================',
-        'INSURANCE WIZARD PLAYBOOK - LEGAL REVIEW',
-        '================================================================================',
-        '',
-        'Playbook: ' + currentFlowName.replace('.json', ''),
-        'Date: ' + new Date().toLocaleString(),
-        'Steps: ' + nodes.length,
-        'Connections: ' + edges.length,
-        '',
-        '--------------------------------------------------------------------------------',
-        'CALL TYPES:',
-        '--------------------------------------------------------------------------------'
-      ];
+      const output = [];
       
-      callTypes.forEach((type, idx) => {
-        output.push((idx + 1) + '. ' + type);
-      });
+      // Professional formatting characters
+      const HR = '═'.repeat(88);
+      const SEC = '─'.repeat(88);
+      const SUB = '·'.repeat(88);
+      
+      // Header
+      output.push(HR);
+      output.push('                    INSURANCE WIZARD PLAYBOOK');
+      output.push('                     LEGAL COMPLIANCE REVIEW');
+      output.push(HR);
+      output.push('');
+      output.push('  PLAYBOOK INFORMATION:');
+      output.push('');
+      output.push('    Name:             ' + currentFlowName.replace('.json', ''));
+      output.push('    Export Date:      ' + new Date().toLocaleString('en-US', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      }));
+      output.push('    Total Steps:      ' + nodes.length);
+      output.push('    Total Paths:      ' + edges.length);
+      output.push('    Call Types:       ' + callTypes.length);
+      output.push('    Carriers:         ' + Object.keys(carriers).length);
+      output.push('');
+      output.push(SEC);
+      output.push('');
+      
+      // Table of Contents
+      output.push('  TABLE OF CONTENTS:');
+      output.push('');
+      output.push('    1. Call Types Configuration');
+      output.push('    2. Carrier Scripts & Verbiage');
+      output.push('    3. Complete Call Flow Structure');
+      output.push('    4. Compliance & Legal Notes');
+      output.push('');
+      output.push(SEC);
+      output.push('');
+      
+      // Section 1: Call Types
+      output.push('  SECTION 1: CALL TYPES CONFIGURATION');
+      output.push('');
+      output.push('  The following call types are configured in this playbook. Each carrier may');
+      output.push('  have different scripts for each call type.');
+      output.push('');
+      
+      if (callTypes && callTypes.length > 0) {
+        callTypes.forEach((type, idx) => {
+          output.push('    ' + (idx + 1) + '. ' + type);
+        });
+      } else {
+        output.push('    [No call types configured]');
+      }
       
       output.push('');
-      output.push('--------------------------------------------------------------------------------');
-      output.push('CARRIERS & SCRIPTS:');
-      output.push('--------------------------------------------------------------------------------');
-      
-      Object.values(carriers).forEach((carrier, idx) => {
-        output.push('');
-        output.push((idx + 1) + '. ' + carrier.name.toUpperCase());
-        if (carrier.scripts) {
-          callTypes.forEach(callType => {
-            const script = carrier.scripts[callType];
-            if (script && script.trim()) {
-              output.push('   [' + callType + ']:');
-              const clean = script.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
-              const lines = clean.split('\n');
-              lines.forEach(line => {
-                if (line.trim()) output.push('     ' + line.trim());
-              });
-            }
-          });
-        }
-      });
-      
+      output.push(SEC);
       output.push('');
-      output.push('--------------------------------------------------------------------------------');
-      output.push('CALL FLOW:');
-      output.push('--------------------------------------------------------------------------------');
+      
+      // Section 2: Carrier Scripts
+      output.push('  SECTION 2: CARRIER SCRIPTS & VERBIAGE');
+      output.push('');
+      output.push('  This section contains the exact verbiage that agents use when communicating');
+      output.push('  with customers for each carrier and call type combination.');
+      output.push('');
+      
+      if (Object.keys(carriers).length > 0) {
+        Object.values(carriers).forEach((carrier, carrierIdx) => {
+          output.push(SUB);
+          output.push('');
+          output.push('  CARRIER ' + (carrierIdx + 1) + ': ' + carrier.name.toUpperCase());
+          output.push('');
+          
+          if (carrier.scripts && Object.keys(carrier.scripts).length > 0) {
+            callTypes.forEach(callType => {
+              const script = carrier.scripts[callType];
+              if (script && script.trim()) {
+                output.push('    ┌─ Call Type: ' + callType.toUpperCase() + ' ' + '─'.repeat(Math.max(0, 46 - callType.length)));
+                output.push('    │');
+                
+                const cleanText = script
+                  .replace(/<[^>]*>/g, '')
+                  .replace(/&nbsp;/g, ' ')
+                  .replace(/&amp;/g, '&')
+                  .replace(/&lt;/g, '<')
+                  .replace(/&gt;/g, '>')
+                  .replace(/&quot;/g, '"')
+                  .trim();
+                
+                if (cleanText) {
+                  cleanText.split('\n').forEach(line => {
+                    if (line.trim()) {
+                      const words = line.trim().split(' ');
+                      let currentLine = '    │  ';
+                      words.forEach(word => {
+                        if (currentLine.length + word.length + 1 > 82) {
+                          output.push(currentLine);
+                          currentLine = '    │  ' + word;
+                        } else {
+                          currentLine += (currentLine.endsWith('  ') ? '' : ' ') + word;
+                        }
+                      });
+                      if (currentLine.length > 6) output.push(currentLine);
+                    }
+                  });
+                } else {
+                  output.push('    │  [No script content]');
+                }
+                
+                output.push('    │');
+                output.push('    └' + '─'.repeat(70));
+                output.push('');
+              }
+            });
+          }
+        });
+      }
+      
+      output.push(SEC);
+      output.push('');
+      
+      // Section 3: Call Flow
+      output.push('  SECTION 3: COMPLETE CALL FLOW STRUCTURE');
+      output.push('');
+      output.push('  This section shows the exact path agents follow during customer calls.');
+      output.push('  Each step is numbered and shows the content agents use or actions they take.');
+      output.push('');
       
       const startNode = nodes.find(n => n.data && n.data.isStart) || nodes[0];
+      
       if (startNode) {
+        let stepNumber = 1;
+        
+        output.push('  ╔' + '═'.repeat(76) + '╗');
+        output.push('  ║' + ' '.repeat(27) + 'CALL FLOW START' + ' '.repeat(34) + '║');
+        output.push('  ╚' + '═'.repeat(76) + '╝');
+        output.push('');
+        
         const buildTree = (nodeId, depth, visited) => {
-          if (!nodeId || visited.has(nodeId) || depth > 15) return;
+          if (!nodeId || visited.has(nodeId) || depth > 20) return;
           visited.add(nodeId);
+          
           const node = nodes.find(n => n.id === nodeId);
           if (!node || !node.data) return;
           
-          const indent = '  '.repeat(depth);
+          const indent = '  ' + '│  '.repeat(depth);
           
-          // Node type labels
           const typeLabels = {
-            'scriptNode': '[SCRIPT]',
-            'carrierNode': '[CARRIER LOOKUP]',
-            'quoteNode': '[QUOTE BUILDER]',
-            'checklistNode': '[COMPLIANCE]',
-            'madLibsNode': '[WORD TRACK]'
+            scriptNode: 'AGENT SCRIPT',
+            carrierNode: 'CARRIER SELECTION',
+            quoteNode: 'QUOTE PRESENTATION',
+            checklistNode: 'COMPLIANCE CHECKPOINT',
+            madLibsNode: 'CUSTOMIZED VERBIAGE'
           };
           
-          const typeLabel = typeLabels[node.type] || '[STEP]';
-          output.push(indent + '> ' + typeLabel + ' ' + node.data.label);
-          output.push('');
+          const icons = {
+            scriptNode: '📄',
+            carrierNode: '🏢',
+            quoteNode: '💰',
+            checklistNode: '✓',
+            madLibsNode: '✏️'
+          };
           
-          // Add content based on node type
+          const icon = icons[node.type] || '•';
+          const label = typeLabels[node.type] || 'STEP';
+          
+          output.push(indent + '┌' + '─'.repeat(71));
+          output.push(indent + '│ STEP ' + stepNumber + ': ' + icon + ' ' + label);
+          output.push(indent + '│ ' + node.data.label);
+          output.push(indent + '├' + '─'.repeat(71));
+          
+          stepNumber++;
+          
+          // Content
           if (node.type === 'scriptNode' && node.data.text) {
-            const cleanText = node.data.text
+            const clean = node.data.text
               .replace(/<[^>]*>/g, '')
               .replace(/&nbsp;/g, ' ')
               .replace(/&amp;/g, '&')
@@ -1753,93 +1855,162 @@ export default function App() {
               .replace(/&gt;/g, '>')
               .trim();
             
-            if (cleanText) {
-              output.push(indent + '  Script:');
-              const lines = cleanText.split('\n');
-              lines.forEach(line => {
+            if (clean) {
+              output.push(indent + '│');
+              output.push(indent + '│ Agent reads the following script to the customer:');
+              output.push(indent + '│');
+              clean.split('\n').forEach(line => {
                 if (line.trim()) {
-                  output.push(indent + '    ' + line.trim());
+                  const words = line.trim().split(' ');
+                  let currentLine = indent + '│   "';
+                  words.forEach(word => {
+                    if (currentLine.length + word.length + 2 > 76) {
+                      output.push(currentLine);
+                      currentLine = indent + '│    ' + word;
+                    } else {
+                      currentLine += (currentLine.endsWith('"') ? '' : ' ') + word;
+                    }
+                  });
+                  if (currentLine.length > indent.length + 5) output.push(currentLine + '"');
                 }
               });
-              output.push('');
             }
           }
           
           if (node.type === 'carrierNode') {
-            const defaultCallType = node.data.defaultCallType || callTypes[0] || 'Quote';
-            output.push(indent + '  Agent selects a carrier from the available carriers.');
-            output.push(indent + '  Default call type: ' + defaultCallType);
-            output.push(indent + '  The system displays the appropriate script based on:');
-            output.push(indent + '    - Selected carrier');
-            output.push(indent + '    - Selected call type');
-            output.push(indent + '  (See "CARRIERS & SCRIPTS" section above for full scripts)');
-            output.push('');
+            const callType = node.data.defaultCallType || callTypes[0] || 'Quote';
+            output.push(indent + '│');
+            output.push(indent + '│ Agent Action Required:');
+            output.push(indent + '│   1. Agent selects the appropriate carrier from the system');
+            output.push(indent + '│   2. Agent selects call type (default: ' + callType + ')');
+            output.push(indent + '│   3. System displays corresponding script (see Section 2)');
+            output.push(indent + '│   4. Agent reads displayed script to customer');
           }
           
           if (node.type === 'checklistNode' && node.data.items) {
-            output.push(indent + '  Compliance Questions:');
-            const items = node.data.items.split('\n');
-            items.forEach((item, idx) => {
-              if (item.trim()) {
-                output.push(indent + '    ' + (idx + 1) + '. ' + item.trim());
-              }
+            output.push(indent + '│');
+            output.push(indent + '│ COMPLIANCE REQUIREMENTS:');
+            output.push(indent + '│ Agent MUST complete all items before proceeding:');
+            output.push(indent + '│');
+            node.data.items.split('\n').forEach(item => {
+              if (item.trim()) output.push(indent + '│   ☐ ' + item.trim());
             });
-            output.push('');
-            output.push(indent + '  Agent must complete all compliance items before proceeding.');
-            output.push('');
+            output.push(indent + '│');
+            output.push(indent + '│ ⚠️  All boxes must be checked before advancing to next step');
           }
           
           if (node.type === 'madLibsNode' && node.data.template) {
-            output.push(indent + '  Word Track Template:');
-            output.push(indent + '    "' + node.data.template + '"');
-            output.push('');
-            output.push(indent + '  Agent fills in the bracketed variables with customer-specific information.');
-            output.push('');
+            output.push(indent + '│');
+            output.push(indent + '│ Agent reads the following, filling in customer information:');
+            output.push(indent + '│');
+            output.push(indent + '│   "' + node.data.template + '"');
+            output.push(indent + '│');
+            output.push(indent + '│ NOTE: Text in {brackets} is replaced with actual customer data');
           }
           
           if (node.type === 'quoteNode') {
-            output.push(indent + '  Quote Builder:');
-            output.push(indent + '    - System calculates and presents pricing to customer');
-            output.push(indent + '    - Agent reviews quote details with customer');
+            output.push(indent + '│');
+            output.push(indent + '│ Quote Presentation Process:');
+            output.push(indent + '│   1. System calculates pricing based on customer information');
+            output.push(indent + '│   2. Agent reviews quote details with customer');
+            output.push(indent + '│   3. Agent presents all coverage options and pricing');
             if (node.data.closingQuestion) {
-              output.push(indent + '    - Closing question: "' + node.data.closingQuestion + '"');
+              output.push(indent + '│   4. Agent asks: "' + node.data.closingQuestion + '"');
             }
-            output.push('');
           }
           
-          // Show branches
+          output.push(indent + '└' + '─'.repeat(71));
+          output.push(indent);
+          
           const children = edges.filter(e => e.source === nodeId);
+          
           if (children.length > 0) {
-            children.forEach(edge => {
-              output.push(indent + '  |');
-              output.push(indent + '  +-- [' + (edge.label || 'Next') + '] -->');
-              output.push('');
+            if (children.length > 1) {
+              output.push(indent + '  Customer Response Determines Next Step:');
+              output.push(indent);
+            }
+            children.forEach((edge, idx) => {
+              const isLast = idx === children.length - 1;
+              const char = isLast ? '└' : '├';
+              output.push(indent + '  ' + char + '─── [' + (edge.label || 'Next') + '] ────>');
+              output.push(indent + '  ' + (isLast ? ' ' : '│'));
               buildTree(edge.target, depth + 1, visited);
+              if (!isLast) output.push(indent + '  │');
             });
           } else {
-            output.push(indent + '  |');
-            output.push(indent + '  +-- [END OF PATH]');
+            output.push(indent + '  └─── [CALL COMPLETE] ');
             output.push('');
           }
         };
+        
         buildTree(startNode.id, 0, new Set());
+        
+        output.push('');
+        output.push('  ╔' + '═'.repeat(76) + '╗');
+        output.push('  ║' + ' '.repeat(28) + 'CALL FLOW END' + ' '.repeat(35) + '║');
+        output.push('  ╚' + '═'.repeat(76) + '╝');
       }
       
       output.push('');
-      output.push('================================================================================');
+      output.push(SEC);
+      output.push('');
       
-      const blob = new Blob([output.join('\n')], { type: 'text/plain' });
+      // Section 4: Legal Notes
+      output.push('  SECTION 4: COMPLIANCE & LEGAL NOTES');
+      output.push('');
+      output.push('  DOCUMENT PURPOSE:');
+      output.push('    This document represents the complete call flow and verbiage used by');
+      output.push('    customer service agents when interacting with customers.');
+      output.push('');
+      output.push('  AGENT REQUIREMENTS:');
+      output.push('    • Agents must follow the prescribed call flow from start to finish');
+      output.push('    • All scripts must be read as written with no deviation');
+      output.push('    • Compliance checkpoints must be completed before advancing');
+      output.push('    • All customer interactions must be documented in the system');
+      output.push('');
+      output.push('  COMPLIANCE CHECKPOINTS:');
+      output.push('    • Checkboxes marked with ☐ must be completed during calls');
+      output.push('    • Agents cannot proceed without completing all compliance items');
+      output.push('    • All disclosures must be read verbatim to customers');
+      output.push('    • Date of birth verification is required for all transactions');
+      output.push('');
+      output.push('  CARRIER-SPECIFIC SCRIPTS:');
+      output.push('    • Scripts vary by carrier and call type (see Section 2)');
+      output.push('    • Agents see only the relevant script for selected carrier/call type');
+      output.push('    • All carrier scripts have been reviewed and approved');
+      output.push('');
+      output.push('  CUSTOMIZED VERBIAGE:');
+      output.push('    • Text in {brackets} indicates customer-specific information');
+      output.push('    • Agents replace bracketed text with actual customer data');
+      output.push('    • Example: {customer_name} becomes "John Smith"');
+      output.push('');
+      output.push('  QUALITY ASSURANCE:');
+      output.push('    • All calls may be monitored for quality and compliance');
+      output.push('    • Agents are evaluated on adherence to this playbook');
+      output.push('    • Any deviations must be documented and approved');
+      output.push('');
+      output.push(HR);
+      output.push('');
+      output.push('  END OF LEGAL REVIEW DOCUMENT');
+      output.push('');
+      output.push('  Exported: ' + new Date().toLocaleString());
+      output.push('  Playbook: ' + currentFlowName.replace('.json', ''));
+      output.push('');
+      output.push(HR);
+      
+      const blob = new Blob([output.join('\n')], { type: 'text/plain; charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = currentFlowName.replace('.json', '') + '_legal_review.txt';
+      a.download = currentFlowName.replace('.json', '') + '_LEGAL_REVIEW.txt';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      
     } catch (error) {
       console.error('Export error:', error);
-      alert('Error exporting: ' + error.message);
+      alert('Error exporting playbook: ' + error.message);
     }
   };
 
