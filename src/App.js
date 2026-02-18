@@ -1671,6 +1671,91 @@ export default function App() {
     }
   };
 
+  const exportPlaybookAsText = () => {
+    try {
+      const output = [
+        '================================================================================',
+        'INSURANCE WIZARD PLAYBOOK - LEGAL REVIEW',
+        '================================================================================',
+        '',
+        'Playbook: ' + currentFlowName.replace('.json', ''),
+        'Date: ' + new Date().toLocaleString(),
+        'Steps: ' + nodes.length,
+        'Connections: ' + edges.length,
+        '',
+        '--------------------------------------------------------------------------------',
+        'CALL TYPES:',
+        '--------------------------------------------------------------------------------'
+      ];
+      
+      callTypes.forEach((type, idx) => {
+        output.push((idx + 1) + '. ' + type);
+      });
+      
+      output.push('');
+      output.push('--------------------------------------------------------------------------------');
+      output.push('CARRIERS & SCRIPTS:');
+      output.push('--------------------------------------------------------------------------------');
+      
+      Object.values(carriers).forEach((carrier, idx) => {
+        output.push('');
+        output.push((idx + 1) + '. ' + carrier.name.toUpperCase());
+        if (carrier.scripts) {
+          callTypes.forEach(callType => {
+            const script = carrier.scripts[callType];
+            if (script && script.trim()) {
+              output.push('   [' + callType + ']:');
+              const clean = script.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+              const lines = clean.split('\n');
+              lines.forEach(line => {
+                if (line.trim()) output.push('     ' + line.trim());
+              });
+            }
+          });
+        }
+      });
+      
+      output.push('');
+      output.push('--------------------------------------------------------------------------------');
+      output.push('CALL FLOW:');
+      output.push('--------------------------------------------------------------------------------');
+      
+      const startNode = nodes.find(n => n.data && n.data.isStart) || nodes[0];
+      if (startNode) {
+        const buildTree = (nodeId, depth, visited) => {
+          if (!nodeId || visited.has(nodeId) || depth > 15) return;
+          visited.add(nodeId);
+          const node = nodes.find(n => n.id === nodeId);
+          if (!node || !node.data) return;
+          const indent = '  '.repeat(depth);
+          output.push(indent + '> ' + node.data.label);
+          const children = edges.filter(e => e.source === nodeId);
+          children.forEach(edge => {
+            output.push(indent + '  +-- [' + (edge.label || 'Next') + '] -->');
+            buildTree(edge.target, depth + 1, visited);
+          });
+        };
+        buildTree(startNode.id, 0, new Set());
+      }
+      
+      output.push('');
+      output.push('================================================================================');
+      
+      const blob = new Blob([output.join('\n')], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = currentFlowName.replace('.json', '') + '_legal_review.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Error exporting: ' + error.message);
+    }
+  };
+
   const onConnect = useCallback((params) => { const label = window.prompt("Choice label?", "Next"); setEdges((eds) => addEdge({ ...params, label: label || "Next" }, eds)); }, [setEdges]);
   const addNewNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'scriptNode', position: {x:250, y:150}, data: {label:'Step', text:'', onChange: updateNodeData, setAsStartNode: setAsStartNode, duplicateNode: duplicateNodeFunc}}]);
   const addCarrierNode = () => setNodes((nds) => [...nds, { id: (Math.random()*10000).toFixed(0), type: 'carrierNode', position: {x:250, y:150}, data: {label:'Select Carrier', onChange: updateNodeData, setAsStartNode: setAsStartNode, duplicateNode: duplicateNodeFunc, callTypes, defaultCallType: callTypes[0] || "Quote"}}]);
@@ -2144,6 +2229,7 @@ export default function App() {
             <button className="btn btn-secondary" onClick={() => setSettingsModalOpen(true)} title="Config"><Settings size={16}/></button>
             <button className="btn btn-secondary" onClick={() => setCarrierModalOpen(true)} title="Carriers"><Building2 size={16}/></button>
             <button className="btn btn-secondary" onClick={() => setCallTypesModalOpen(true)} title="Manage Call Types" style={{color:'#8b5cf6'}}><Layers size={16}/></button>
+            <button className="btn btn-secondary" onClick={exportPlaybookAsText} title="Export for Legal Review" style={{color:'#10b981'}}><FileText size={16}/></button>
             <div style={{width:'1px', height:'20px', background: BORDER, margin:'0 4px'}}></div>
             <button className="btn btn-secondary" onClick={addNewNode} title="Add Script"><Plus size={16}/></button>
             <button className="btn btn-secondary" onClick={addMadLibsNode} style={{color:'#10b981'}} title="Add Word Track"><Edit size={16}/></button>
