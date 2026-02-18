@@ -1727,13 +1727,100 @@ export default function App() {
           visited.add(nodeId);
           const node = nodes.find(n => n.id === nodeId);
           if (!node || !node.data) return;
+          
           const indent = '  '.repeat(depth);
-          output.push(indent + '> ' + node.data.label);
+          
+          // Node type labels
+          const typeLabels = {
+            'scriptNode': '[SCRIPT]',
+            'carrierNode': '[CARRIER LOOKUP]',
+            'quoteNode': '[QUOTE BUILDER]',
+            'checklistNode': '[COMPLIANCE]',
+            'madLibsNode': '[WORD TRACK]'
+          };
+          
+          const typeLabel = typeLabels[node.type] || '[STEP]';
+          output.push(indent + '> ' + typeLabel + ' ' + node.data.label);
+          output.push('');
+          
+          // Add content based on node type
+          if (node.type === 'scriptNode' && node.data.text) {
+            const cleanText = node.data.text
+              .replace(/<[^>]*>/g, '')
+              .replace(/&nbsp;/g, ' ')
+              .replace(/&amp;/g, '&')
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .trim();
+            
+            if (cleanText) {
+              output.push(indent + '  Script:');
+              const lines = cleanText.split('\n');
+              lines.forEach(line => {
+                if (line.trim()) {
+                  output.push(indent + '    ' + line.trim());
+                }
+              });
+              output.push('');
+            }
+          }
+          
+          if (node.type === 'carrierNode') {
+            const defaultCallType = node.data.defaultCallType || callTypes[0] || 'Quote';
+            output.push(indent + '  Agent selects a carrier from the available carriers.');
+            output.push(indent + '  Default call type: ' + defaultCallType);
+            output.push(indent + '  The system displays the appropriate script based on:');
+            output.push(indent + '    - Selected carrier');
+            output.push(indent + '    - Selected call type');
+            output.push(indent + '  (See "CARRIERS & SCRIPTS" section above for full scripts)');
+            output.push('');
+          }
+          
+          if (node.type === 'checklistNode' && node.data.items) {
+            output.push(indent + '  Compliance Questions:');
+            const items = node.data.items.split('\n');
+            items.forEach((item, idx) => {
+              if (item.trim()) {
+                output.push(indent + '    ' + (idx + 1) + '. ' + item.trim());
+              }
+            });
+            output.push('');
+            output.push(indent + '  Agent must complete all compliance items before proceeding.');
+            output.push('');
+          }
+          
+          if (node.type === 'madLibsNode' && node.data.template) {
+            output.push(indent + '  Word Track Template:');
+            output.push(indent + '    "' + node.data.template + '"');
+            output.push('');
+            output.push(indent + '  Agent fills in the bracketed variables with customer-specific information.');
+            output.push('');
+          }
+          
+          if (node.type === 'quoteNode') {
+            output.push(indent + '  Quote Builder:');
+            output.push(indent + '    - System calculates and presents pricing to customer');
+            output.push(indent + '    - Agent reviews quote details with customer');
+            if (node.data.closingQuestion) {
+              output.push(indent + '    - Closing question: "' + node.data.closingQuestion + '"');
+            }
+            output.push('');
+          }
+          
+          // Show branches
           const children = edges.filter(e => e.source === nodeId);
-          children.forEach(edge => {
-            output.push(indent + '  +-- [' + (edge.label || 'Next') + '] -->');
-            buildTree(edge.target, depth + 1, visited);
-          });
+          if (children.length > 0) {
+            children.forEach(edge => {
+              output.push(indent + '  |');
+              output.push(indent + '  +-- [' + (edge.label || 'Next') + '] -->');
+              output.push('');
+              buildTree(edge.target, depth + 1, visited);
+            });
+          } else {
+            output.push(indent + '  |');
+            output.push(indent + '  +-- [END OF PATH]');
+            output.push('');
+          }
         };
         buildTree(startNode.id, 0, new Set());
       }
