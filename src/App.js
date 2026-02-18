@@ -1327,6 +1327,13 @@ export default function App() {
   const [isPlaybookManagerOpen, setPlaybookManagerOpen] = useState(false);
   const [isCallTypesModalOpen, setCallTypesModalOpen] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authToken, setAuthToken] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState(null);
   const [resources, setResources] = useState(DEFAULT_RESOURCES);
   const [issues, setIssues] = useState(DEFAULT_ISSUES);
 
@@ -1424,6 +1431,156 @@ export default function App() {
       return node;
     }));
   }, [nodes.length]); // Run when nodes are added/removed
+
+  // Session timeout (30 minutes)
+  const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
+  const lastActivityRef = useRef(Date.now());
+
+  // Check session validity
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const checkSession = setInterval(() => {
+      const timeSinceActivity = Date.now() - lastActivityRef.current;
+      if (timeSinceActivity > SESSION_TIMEOUT) {
+        // Session expired
+        setIsAuthenticated(false);
+        setAuthToken(null);
+        setShowAdmin(false);
+        sessionStorage.removeItem('admin_token');
+        alert('Admin session expired due to inactivity. Please authenticate again.');
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(checkSession);
+  }, [isAuthenticated]);
+
+  // Update activity timestamp on any interaction
+  useEffect(() => {
+    const updateActivity = () => {
+      lastActivityRef.current = Date.now();
+    };
+
+    if (isAuthenticated) {
+      window.addEventListener('click', updateActivity);
+      window.addEventListener('keydown', updateActivity);
+      window.addEventListener('scroll', updateActivity);
+
+      return () => {
+        window.removeEventListener('click', updateActivity);
+        window.removeEventListener('keydown', updateActivity);
+        window.removeEventListener('scroll', updateActivity);
+      };
+    }
+  }, [isAuthenticated]);
+
+  // Check for existing session on load
+  useEffect(() => {
+    const savedToken = sessionStorage.getItem('admin_token');
+    const savedTimestamp = sessionStorage.getItem('admin_timestamp');
+    
+    if (savedToken && savedTimestamp) {
+      const timeSinceAuth = Date.now() - parseInt(savedTimestamp);
+      if (timeSinceAuth < SESSION_TIMEOUT) {
+        setIsAuthenticated(true);
+        setAuthToken(savedToken);
+        lastActivityRef.current = Date.now();
+      } else {
+        sessionStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin_timestamp');
+      }
+    }
+  }, []);
+
+  // Handle admin unlock click
+  const handleAdminUnlock = () => {
+    // Check if locked out
+    if (lockoutUntil && Date.now() < lockoutUntil) {
+      const remainingSeconds = Math.ceil((lockoutUntil - Date.now()) / 1000);
+      alert(`Too many failed attempts. Please wait ${remainingSeconds} seconds.`);
+      return;
+    }
+
+    if (isAuthenticated) {
+      // Already authenticated, just toggle admin panel
+      setShowAdmin(!showAdmin);
+    } else {
+      // Need to authenticate
+      setShowPasswordModal(true);
+      setPasswordInput('');
+      setPasswordError('');
+    }
+  };
+
+  // Handle password submission
+  const handlePasswordSubmit = async () => {
+    if (!passwordInput.trim()) {
+      setPasswordError('Please enter a password');
+      return;
+    }
+
+    try {
+      // Send password to server for verification
+      const response = await fetch(`${API_URL}/verify-admin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: passwordInput })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Authentication successful
+        const token = data.token;
+        setIsAuthenticated(true);
+        setAuthToken(token);
+        setShowAdmin(true);
+        setShowPasswordModal(false);
+        setPasswordInput('');
+        setPasswordError('');
+        setFailedAttempts(0);
+        setLockoutUntil(null);
+        
+        // Store in sessionStorage (not localStorage - expires when browser closes)
+        sessionStorage.setItem('admin_token', token);
+        sessionStorage.setItem('admin_timestamp', Date.now().toString());
+        lastActivityRef.current = Date.now();
+      } else {
+        // Authentication failed
+        const newFailedAttempts = failedAttempts + 1;
+        setFailedAttempts(newFailedAttempts);
+
+        if (newFailedAttempts >= 3) {
+          // Lock out for 1 minute after 3 failed attempts
+          const lockoutTime = Date.now() + 60000; // 1 minute
+          setLockoutUntil(lockoutTime);
+          setPasswordError('Too many failed attempts. Locked out for 1 minute.');
+          setShowPasswordModal(false);
+          setPasswordInput('');
+          
+          // Reset after lockout period
+          setTimeout(() => {
+            setFailedAttempts(0);
+            setLockoutUntil(null);
+          }, 60000);
+        } else {
+          setPasswordError(`Incorrect password. ${3 - newFailedAttempts} attempts remaining.`);
+        }
+      }
+    } catch (error) {
+      console.error('Authentication error:', error);
+      setPasswordError('Error connecting to server. Please try again.');
+    }
+  };
+
+  // Handle manual lock
+  const handleAdminLock = () => {
+    setIsAuthenticated(false);
+    setAuthToken(null);
+    setShowAdmin(false);
+    sessionStorage.removeItem('admin_token');
+    sessionStorage.removeItem('admin_timestamp');
+  };
 
   const setAsStartNode = useCallback((id) => {
     setNodes((nds) => nds.map((node) => ({
@@ -2349,6 +2506,103 @@ export default function App() {
 
   return (
     <div className="app-container" style={{display:'flex', width:'100vw', height:'100vh', overflow:'hidden', fontFamily:'Inter, sans-serif'}}>
+      {/* Password Modal */}
+      {showPasswordModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '30px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+          }}>
+            <h2 style={{margin: '0 0 10px 0', fontSize: '24px', color: SLATE}}>🔒 Admin Authentication</h2>
+            <p style={{margin: '0 0 20px 0', fontSize: '14px', color: '#666'}}>
+              Enter the admin password to unlock the editor panel.
+            </p>
+            
+            <input
+              type="password"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+              placeholder="Enter password"
+              autoFocus
+              style={{
+                width: '100%',
+                padding: '12px',
+                fontSize: '16px',
+                border: `2px solid ${passwordError ? '#ef4444' : BORDER}`,
+                borderRadius: '8px',
+                marginBottom: '10px',
+                boxSizing: 'border-box'
+              }}
+            />
+            
+            {passwordError && (
+              <div style={{
+                color: '#ef4444',
+                fontSize: '13px',
+                marginBottom: '15px',
+                padding: '8px',
+                background: '#fee2e2',
+                borderRadius: '6px'
+              }}>
+                {passwordError}
+              </div>
+            )}
+            
+            <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end'}}>
+              <button
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setPasswordInput('');
+                  setPasswordError('');
+                }}
+                style={{
+                  padding: '10px 20px',
+                  border: `1px solid ${BORDER}`,
+                  background: 'white',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  color: SLATE
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePasswordSubmit}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  background: JERRY_PINK,
+                  color: 'white',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}
+              >
+                Unlock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <CallTypesManager isOpen={isCallTypesModalOpen} onClose={() => setCallTypesModalOpen(false)} callTypes={callTypes} setCallTypes={setCallTypes} />
       <CarrierManager isOpen={isCarrierModalOpen} onClose={() => setCarrierModalOpen(false)} carriers={carriers} setCarriers={setCarriers} callTypes={callTypes} />
       <SettingsManager isOpen={isSettingsModalOpen} onClose={() => setSettingsModalOpen(false)} settings={quoteSettings} setSettings={setQuoteSettings} />
@@ -2383,9 +2637,14 @@ export default function App() {
               </select>
           </div>
 
-          <button className="btn btn-secondary" onClick={() => setShowAdmin(!showAdmin)} style={{marginRight:'10px', color: showAdmin ? JERRY_PINK : '#999', borderColor: 'transparent'}}>
+          <button className="btn btn-secondary" onClick={handleAdminUnlock} style={{marginRight:'10px', color: showAdmin ? JERRY_PINK : '#999', borderColor: 'transparent'}}>
              {showAdmin ? <Unlock size={16}/> : <Lock size={16}/>}
           </button>
+          {isAuthenticated && showAdmin && (
+            <button className="btn btn-secondary" onClick={handleAdminLock} title="Lock Admin Panel" style={{marginRight:'10px', color: '#ef4444', borderColor: 'transparent'}}>
+              <Lock size={16}/>
+            </button>
+          )}
           <button className="btn btn-secondary" onClick={resetWizard} style={{color: SLATE}}><RefreshCw size={16} /></button>
         </div>
         
