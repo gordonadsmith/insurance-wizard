@@ -15,7 +15,21 @@ app.use(express.static(path.join(__dirname, 'build')));
 
 // Configuration
 const PLAYBOOKS_DIR = path.join(__dirname, 'playbooks');
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5000;
+
+// Admin password configuration
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123'; // Default password - CHANGE THIS!
+const crypto = require('crypto');
+
+// Generate a simple session token
+function generateToken() {
+    return crypto.randomBytes(32).toString('hex');
+}
+
+// Hash password for comparison
+function hashPassword(password) {
+    return crypto.createHash('sha256').update(password).digest('hex');
+}
 
 // Ensure playbooks directory exists
 async function ensureDirectories() {
@@ -32,6 +46,32 @@ ensureDirectories();
 // ============================================================================
 // API ENDPOINTS
 // ============================================================================
+
+// Admin authentication endpoint
+app.post('/api/verify-admin', (req, res) => {
+    const { password } = req.body;
+    
+    if (!password) {
+        return res.json({ success: false, message: 'Password required' });
+    }
+    
+    // Compare with configured password
+    if (password === ADMIN_PASSWORD) {
+        // Generate session token
+        const token = generateToken();
+        
+        res.json({ 
+            success: true, 
+            token: token,
+            message: 'Authentication successful'
+        });
+    } else {
+        res.json({ 
+            success: false, 
+            message: 'Incorrect password'
+        });
+    }
+});
 
 // Get list of all playbook files
 app.get('/api/flows', async (req, res) => {
