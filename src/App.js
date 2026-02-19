@@ -1527,6 +1527,10 @@ export default function App() {
         body: JSON.stringify({ password: passwordInput })
       });
 
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -1569,7 +1573,7 @@ export default function App() {
       }
     } catch (error) {
       console.error('Authentication error:', error);
-      setPasswordError('Error connecting to server. Please try again.');
+      setPasswordError(`Error connecting to server: ${error.message}. Make sure server is running and ADMIN_PASSWORD is set.`);
     }
   };
 
