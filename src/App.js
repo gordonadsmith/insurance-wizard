@@ -2736,36 +2736,69 @@ export default function App() {
 
       <ResourceSidebar resources={resources} setResources={setResources} issues={issues} setIssues={setIssues} />
 
-      <div className="wizard-pane" style={{
-          flex: showAdmin ? '0 0 400px' : '1', 
-          maxWidth: '100%', 
-          minWidth: '350px',
-          borderRight: showAdmin ? `1px solid ${BORDER}` : 'none', 
-          display:'flex', flexDirection:'column', background: 'white'
-        }}>
-        <div className="wizard-header" style={{borderBottom:`1px solid ${BORDER}`, padding:'15px 20px', display:'flex', alignItems:'center'}}>
-          <img src={jerryLogo} alt="Jerry" style={{height:'30px', marginRight:'10px'}} />
-          <div style={{ fontWeight: '700', fontSize: '18px', color: SLATE }}>Insurance Wizard</div>
-          <div style={{ flexGrow: 1 }}></div>
-          
-          <div style={{display:'flex', alignItems:'center', gap:'4px', marginRight:'12px'}}>
-              <FolderOpen size={16} color={SLATE} />
-              <select value={currentFlowName} onChange={handleSwitchFlow} style={{fontSize:'12px', padding:'4px', borderRadius:'4px', maxWidth:'120px', border:`1px solid ${BORDER}`}}>
-                  {availableFlows.map(f => <option key={f} value={f}>{f.replace('.json','')}</option>)}
-              </select>
-          </div>
-
-          <button className="btn btn-secondary" onClick={handleAdminUnlock} style={{marginRight:'10px', color: showAdmin ? JERRY_PINK : '#999', borderColor: 'transparent'}}>
-             {showAdmin ? <Unlock size={16}/> : <Lock size={16}/>}
-          </button>
-          {isAuthenticated && showAdmin && (
-            <button className="btn btn-secondary" onClick={handleAdminLock} title="Lock Admin Panel" style={{marginRight:'10px', color: '#ef4444', borderColor: 'transparent'}}>
-              <Lock size={16}/>
-            </button>
-          )}
-          <button className="btn btn-secondary" onClick={resetWizard} style={{color: SLATE}}><RefreshCw size={16} /></button>
-        </div>
+    <div className="wizard-pane" style={{
+        flex: showAdmin ? '0 0 400px' : '1', 
+        maxWidth: '100%', 
+        minWidth: '350px',
+        borderRight: showAdmin ? `1px solid ${BORDER}` : 'none', 
+        display:'flex', flexDirection:'column', background: 'white'
+      }}>
+      <div className="wizard-header" style={{borderBottom:`1px solid ${BORDER}`, padding:'15px 20px', display:'flex', alignItems:'center'}}>
+        <img src={jerryLogo} alt="Jerry" style={{height:'30px', marginRight:'10px'}} />
+        <div style={{ fontWeight: '700', fontSize: '18px', color: SLATE }}>Insurance Wizard</div>
+        <div style={{ flexGrow: 1 }}></div>
         
+        <div style={{display:'flex', alignItems:'center', gap:'4px', marginRight:'12px'}}>
+            <FolderOpen size={16} color={SLATE} />
+            <select value={currentFlowName} onChange={handleSwitchFlow} style={{fontSize:'12px', padding:'4px', borderRadius:'4px', maxWidth:'120px', border:`1px solid ${BORDER}`}}>
+                {availableFlows.map(f => <option key={f} value={f}>{f.replace('.json','')}</option>)}
+            </select>
+        </div>
+
+        <button className="btn btn-secondary" onClick={handleAdminUnlock} style={{marginRight:'10px', color: showAdmin ? JERRY_PINK : '#999', borderColor: 'transparent'}}>
+           {showAdmin ? <Unlock size={16}/> : <Lock size={16}/>}
+        </button>
+        {isAuthenticated && showAdmin && (
+          <button className="btn btn-secondary" onClick={handleAdminLock} title="Lock Admin Panel" style={{marginRight:'10px', color: '#ef4444', borderColor: 'transparent'}}>
+            <Lock size={16}/>
+          </button>
+        )}
+        <button className="btn btn-secondary" onClick={resetWizard} style={{color: SLATE}}><RefreshCw size={16} /></button>
+      </div>
+
+      {/* Tone Selector - Fixed below header, always visible */}
+      <div style={{
+        padding:'10px 20px', 
+        borderBottom: `2px solid ${TONES[selectedTone].borderColor}`, 
+        background: '#f9fafb',
+        flexShrink: 0
+      }}>
+        <label style={{fontSize:'11px', fontWeight:'bold', color:'#666', display:'block', marginBottom:'6px', textTransform:'uppercase'}}>Customer Tone:</label>
+        <div style={{display:'flex', gap:'6px'}}>
+          {Object.entries(TONES).map(([key, tone]) => (
+            <button
+              key={key}
+              onClick={() => setSelectedTone(key)}
+              style={{
+                flex: 1,
+                padding: '8px 4px',
+                border: selectedTone === key ? `2px solid ${tone.borderColor}` : `1px solid ${BORDER}`,
+                borderRadius: '8px',
+                background: selectedTone === key ? tone.color : 'white',
+                color: selectedTone === key ? tone.textColor : '#666',
+                fontSize: '10px',
+                fontWeight: selectedTone === key ? '700' : '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                textTransform: 'uppercase'
+              }}
+              title={tone.description}
+            >
+              {tone.label}
+            </button>
+          ))}
+        </div>
+      </div>
         <div 
           className="wizard-content" 
           style={{background: 'white', overflowX: 'hidden'}}
@@ -2831,35 +2864,6 @@ export default function App() {
               </div>
             </div>
           ))}
-          
-          {/* Tone Selector */}
-          <div style={{padding:'12px 20px', borderBottom: `2px solid ${TONES[selectedTone].borderColor}`, background: '#f9fafb'}}>
-            <label style={{fontSize:'11px', fontWeight:'bold', color:'#666', display:'block', marginBottom:'6px', textTransform:'uppercase'}}>Customer Tone:</label>
-            <div style={{display:'flex', gap:'6px'}}>
-              {Object.entries(TONES).map(([key, tone]) => (
-                <button
-                  key={key}
-                  onClick={() => setSelectedTone(key)}
-                  style={{
-                    flex: 1,
-                    padding: '8px 4px',
-                    border: selectedTone === key ? `2px solid ${tone.borderColor}` : `1px solid ${BORDER}`,
-                    borderRadius: '8px',
-                    background: selectedTone === key ? tone.color : 'white',
-                    color: selectedTone === key ? tone.textColor : '#666',
-                    fontSize: '10px',
-                    fontWeight: selectedTone === key ? '700' : '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    textTransform: 'uppercase'
-                  }}
-                  title={tone.description}
-                >
-                  {tone.label}
-                </button>
-              ))}
-            </div>
-          </div>
           
           {getCurrentNode() && (
             <div className="bubble" style={{ 
