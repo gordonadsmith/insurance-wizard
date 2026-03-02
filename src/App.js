@@ -1461,15 +1461,13 @@ export default function App() {
   const userScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef(null);
 
-  // Initialize selectedCallType when landing on a carrier node
   useEffect(() => {
     const currentNode = nodes.find(n => n.id === currentNodeId);
     if (currentNode && currentNode.type === 'carrierNode') {
-      // Set to node's default call type or first available call type
       const defaultType = currentNode.data.defaultCallType || callTypes[0] || "Quote";
       setSelectedCallType(defaultType);
     }
-  }, [currentNodeId, nodes, callTypes]);
+  }, [currentNodeId]);
 
   const updateNodeData = useCallback((id, newData) => {
     setNodes((nds) => nds.map((node) => {
@@ -1753,12 +1751,7 @@ export default function App() {
     }
   }, [currentFlowName]);
 
-  useEffect(() => {
-    const currentNode = getCurrentNode();
-    if (currentNode && currentNode.type === 'carrierNode') {
-      setSelectedCallType(currentNode.data.defaultCallType || "Quote");
-    }
-  }, [currentNodeId, nodes]);
+
 
   const loadFlowData = (filename) => {
     if (USE_LOCAL_STORAGE) {
