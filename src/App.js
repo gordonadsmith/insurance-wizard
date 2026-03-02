@@ -1485,6 +1485,20 @@ export default function App() {
       return node;
     }));
   }, [setNodes, callTypes]);
+
+  useEffect(() => {
+  // Find the node currently being displayed in the wizard/agent view
+  const currentNode = nodes.find(n => n.id === currentNodeId);
+  
+  if (currentNode && currentNode.type === 'carrierNode') {
+    // If the call type isn't set, force it to the node's default or the first available type
+    // This fixes the Render bug where state starts empty and requires a manual click
+    if (!selectedCallType) {
+      const defaultType = currentNode.data.defaultCallType || callTypes[0] || "Quote";
+      setSelectedCallType(defaultType);
+    }
+  }
+}, [currentNodeId, nodes, selectedCallType, callTypes]);
   
   // Duplicate node function
   const duplicateNodeFunc = (nodeId) => {
