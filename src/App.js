@@ -16,7 +16,11 @@ import jerryLogo from './jerry_logo.png';
 // ============================================================================
 
 const API_URL = "/api"; 
-const USE_LOCAL_STORAGE = true;
+// Auto-detect: use localStorage for localhost, server for production
+const USE_LOCAL_STORAGE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+// Feature flag: Set to true to disable authentication (for testing/migration)
+const DISABLE_AUTH = true; // Set to true to bypass password protection
 
 const JERRY_PINK = "#E9406A";
 const JERRY_BG = "#FDF2F4"; 
@@ -716,8 +720,15 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
               method: 'POST',
               headers: {'Content-Type': 'application/json'},
               body: JSON.stringify({ oldFilename: oldName, newFilename: safeNewName })
-          }).then(res => res.json()).then(data => {
-              if(data.message.includes("success")) {
+          })
+          .then(res => {
+              if (!res.ok) {
+                  throw new Error(`Server error: ${res.status}`);
+              }
+              return res.json();
+          })
+          .then(data => {
+              if(data.message && data.message.includes("success")) {
                   refreshList();
                   if(currentFlowName === oldName) {
                       setCurrentFlowName(data.newFilename);
@@ -725,8 +736,12 @@ const PlaybookManager = ({ isOpen, onClose, availableFlows, refreshList, current
                   setRenamingId(null);
                   setNewName("");
               } else {
-                  alert(data.message);
+                  alert(data.message || 'Error renaming playbook');
               }
+          })
+          .catch(err => {
+              console.error('Rename error:', err);
+              alert('Error renaming playbook: ' + err.message);
           });
         }
     };
@@ -1210,23 +1225,80 @@ const CarrierManager = ({ isOpen, onClose, carriers, setCarriers, callTypes }) =
 };
 
 // NODES
-const ScriptNode = ({ id, data }) => (
-  <div className="node-card" style={{border: data.isStart ? `2px solid ${JERRY_PINK}` : `1px solid ${BORDER}`}}>
-    <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
-    <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
-        <div style={{fontSize: '10px', color: data.isStart ? JERRY_PINK : '#999', fontWeight: data.isStart ? 'bold' : 'normal', textTransform:'uppercase'}}>{data.isStart ? 'START STEP' : 'Script Step'}</div>
-        <div style={{display: 'flex', gap: '4px', alignItems: 'center'}}>
-          <Copy size={12} style={{cursor:'pointer', color: '#666'}} onClick={() => data.duplicateNode(id)} title="Duplicate Node"/>
-          <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+const ScriptNode = ({ id, data }) => {
+  // Check if this node has tone-specific scripts
+  const hasToneScripts = data.toneScripts && Object.keys(data.toneScripts).length > 0;
+  
+  return (
+    <div className="node-card" style={{border: data.isStart ? `2px solid ${JERRY_PINK}` : `1px solid ${BORDER}`}}>
+      <Handle type="target" position={Position.Top} style={{ background: '#555' }} />
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'4px'}}>
+          <div style={{fontSize: '10px', color: data.isStart ? JERRY_PINK : '#999', fontWeight: data.isStart ? 'bold' : 'normal', textTransform:'uppercase'}}>
+            {data.isStart ? 'START STEP' : 'Script Step'}
+            {hasToneScripts && <span style={{marginLeft: '4px', color: '#10b981'}}>●</span>}
+          </div>
+          <div style={{display: 'flex', gap: '4px', alignItems: 'center'}}>
+            <Copy size={12} style={{cursor:'pointer', color: '#666'}} onClick={() => data.duplicateNode(id)} title="Duplicate Node"/>
+            <Flag size={12} style={{cursor:'pointer', fill: data.isStart ? JERRY_PINK : 'none', color: data.isStart ? JERRY_PINK : '#ccc'}} onClick={() => data.setAsStartNode(id)} title="Set as Start Node"/>
+          </div>
+      </div>
+      <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
+      
+      {/* Default/Neutral script */}
+      <div style={{fontSize:'9px', color:'#666', marginTop:'6px', marginBottom:'2px'}}>Default Script (All Tones):</div>
+      <div className="nodrag" style={{background:'white'}}>
+          <ReactQuill theme="bubble" value={data.text} onChange={(val) => data.onChange(id, { ...data, text: val })} placeholder="Type default script..." />
+      </div>
+      
+      {/* Tone-specific scripts (collapsed by default) */}
+      {data.showToneScripts && (
+        <div style={{marginTop:'8px', borderTop:`1px solid ${BORDER}`, paddingTop:'8px'}}>
+          <div style={{fontSize:'9px', color:'#666', marginBottom:'4px', fontWeight:'600'}}>Tone-Specific Scripts (Optional):</div>
+          
+          {['fun', 'efficient', 'detailed'].map(tone => (
+            <div key={tone} style={{marginBottom:'6px'}}>
+              <div style={{fontSize:'8px', color: TONES[tone].textColor, marginBottom:'2px', fontWeight:'600', textTransform:'uppercase'}}>
+                {TONES[tone].label}:
+              </div>
+              <div className="nodrag" style={{background:'white', border: `1px solid ${TONES[tone].borderColor}`, borderRadius:'4px'}}>
+                <ReactQuill 
+                  theme="bubble" 
+                  value={data.toneScripts?.[tone] || ''} 
+                  onChange={(val) => data.onChange(id, { 
+                    ...data, 
+                    toneScripts: { ...data.toneScripts, [tone]: val } 
+                  })} 
+                  placeholder={`Add ${tone} variation...`} 
+                />
+              </div>
+            </div>
+          ))}
         </div>
+      )}
+      
+      {/* Toggle button for tone scripts */}
+      <button
+        className="nodrag"
+        onClick={() => data.onChange(id, { ...data, showToneScripts: !data.showToneScripts })}
+        style={{
+          marginTop:'6px',
+          padding:'4px 8px',
+          fontSize:'9px',
+          border:`1px solid ${BORDER}`,
+          borderRadius:'4px',
+          background:'white',
+          cursor:'pointer',
+          width:'100%',
+          color:'#666'
+        }}
+      >
+        {data.showToneScripts ? '▼ Hide' : '▶ Add'} Tone Variations
+      </button>
+      
+      <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
     </div>
-    <input className="nodrag node-input-label" value={data.label} onChange={(evt) => data.onChange(id, { ...data, label: evt.target.value })} placeholder="STEP NAME"/>
-    <div className="nodrag" style={{background:'white'}}>
-        <ReactQuill theme="bubble" value={data.text} onChange={(val) => data.onChange(id, { ...data, text: val })} placeholder="Type script..." />
-    </div>
-    <Handle type="source" position={Position.Bottom} style={{ background: '#555' }} />
-  </div>
-);
+  );
+};
 
 const CarrierNode = ({ id, data }) => {
   const availableCallTypes = data.callTypes || DEFAULT_CALL_TYPES;
@@ -1312,6 +1384,38 @@ const MadLibsNode = ({ id, data }) => (
   </div>
 );
 
+// Tone configurations with colors and descriptions
+const TONES = {
+  neutral: {
+    label: 'Neutral',
+    color: '#f3f4f6',
+    textColor: '#1f2937',
+    borderColor: '#d1d5db',
+    description: 'Professional and balanced'
+  },
+  fun: {
+    label: 'Fun',
+    color: '#fef3c7',
+    textColor: '#92400e',
+    borderColor: '#fbbf24',
+    description: 'Friendly and energetic'
+  },
+  efficient: {
+    label: 'Efficient',
+    color: '#dbeafe',
+    textColor: '#1e3a8a',
+    borderColor: '#3b82f6',
+    description: 'Direct and concise'
+  },
+  detailed: {
+    label: 'Detail-Oriented',
+    color: '#e0e7ff',
+    textColor: '#3730a3',
+    borderColor: '#6366f1',
+    description: 'Thorough and comprehensive'
+  }
+};
+
 const nodeTypes = { scriptNode: ScriptNode, carrierNode: CarrierNode, quoteNode: QuoteNode, checklistNode: ChecklistNode, madLibsNode: MadLibsNode };
 
 // MAIN APP
@@ -1321,6 +1425,7 @@ export default function App() {
   const [carriers, setCarriers] = useState(DEFAULT_CARRIERS);
   const [quoteSettings, setQuoteSettings] = useState(DEFAULT_QUOTE_SETTINGS);
   const [callTypes, setCallTypes] = useState(DEFAULT_CALL_TYPES);
+  const [selectedTone, setSelectedTone] = useState('neutral');
   
   const [isCarrierModalOpen, setCarrierModalOpen] = useState(false);
   const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
@@ -1494,6 +1599,12 @@ export default function App() {
 
   // Handle admin unlock click
   const handleAdminUnlock = () => {
+    // Feature flag: Skip authentication if disabled
+    if (DISABLE_AUTH) {
+      setShowAdmin(!showAdmin);
+      return;
+    }
+
     // Check if locked out
     if (lockoutUntil && Date.now() < lockoutUntil) {
       const remainingSeconds = Math.ceil((lockoutUntil - Date.now()) / 1000);
@@ -1674,6 +1785,7 @@ export default function App() {
           setQuoteSettings(data.quoteSettings || DEFAULT_QUOTE_SETTINGS);
           setCallTypes(data.callTypes || DEFAULT_CALL_TYPES);
           setIssues(data.issues || DEFAULT_ISSUES);
+          setSelectedTone(data.selectedTone || 'neutral');
           setHistory([]);
           setActiveChecklistState({});
           const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
@@ -1717,6 +1829,7 @@ export default function App() {
           setQuoteSettings(data.quoteSettings || DEFAULT_QUOTE_SETTINGS);
           setCallTypes(data.callTypes || DEFAULT_CALL_TYPES);
           setIssues(data.issues || DEFAULT_ISSUES);
+          setSelectedTone(data.selectedTone || 'neutral');
           setHistory([]);
           setActiveChecklistState({});
           const start = nodesWithHandler.find(n => n.data.isStart) || nodesWithHandler.find(n => n.id === '1') || nodesWithHandler[0];
@@ -1808,7 +1921,8 @@ export default function App() {
       quoteSettings,
       resources,
       callTypes,
-      issues
+      issues,
+      selectedTone: selectedTone || 'neutral'
     };
     
     if (USE_LOCAL_STORAGE) {
@@ -2682,9 +2796,12 @@ export default function App() {
               onMouseEnter={(e) => e.currentTarget.style.opacity = '0.8'}
               onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
             >
-              <div className="bubble" style={{background: '#F3F4F6'}}>
-                <div className="bubble-label" style={{color: SLATE}}>{step.data.label}</div>
-                {step.type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE, width: '100%', minWidth: 0, wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'normal', whiteSpace: 'normal'}} dangerouslySetInnerHTML={{__html: cleanHTML(step.data.text)}}></div>}
+              <div className="bubble" style={{
+                background: `${TONES[selectedTone].color}80`, 
+                borderLeft: `3px solid ${TONES[selectedTone].borderColor}`
+              }}>
+                <div className="bubble-label" style={{color: TONES[selectedTone].textColor}}>{step.data.label}</div>
+                {step.type === 'scriptNode' && <div className="bubble-text" style={{color: TONES[selectedTone].textColor, width: '100%', minWidth: 0, wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'normal', whiteSpace: 'normal'}} dangerouslySetInnerHTML={{__html: cleanHTML(step.data.toneScripts?.[selectedTone] || step.data.text)}}></div>}
                 {step.type === 'carrierNode' && step.carrierInfo && (
                   <div>
                     <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'6px'}}>
@@ -2715,11 +2832,59 @@ export default function App() {
             </div>
           ))}
           
+          {/* Tone Selector */}
+          <div style={{padding:'12px 20px', borderBottom: `2px solid ${TONES[selectedTone].borderColor}`, background: '#f9fafb'}}>
+            <label style={{fontSize:'11px', fontWeight:'bold', color:'#666', display:'block', marginBottom:'6px', textTransform:'uppercase'}}>Customer Tone:</label>
+            <div style={{display:'flex', gap:'6px'}}>
+              {Object.entries(TONES).map(([key, tone]) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedTone(key)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 4px',
+                    border: selectedTone === key ? `2px solid ${tone.borderColor}` : `1px solid ${BORDER}`,
+                    borderRadius: '8px',
+                    background: selectedTone === key ? tone.color : 'white',
+                    color: selectedTone === key ? tone.textColor : '#666',
+                    fontSize: '10px',
+                    fontWeight: selectedTone === key ? '700' : '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    textTransform: 'uppercase'
+                  }}
+                  title={tone.description}
+                >
+                  {tone.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          
           {getCurrentNode() && (
-            <div className="bubble" style={{ borderLeft: `4px solid ${getCurrentNode().type === 'carrierNode' ? '#8b5cf6' : getCurrentNode().type === 'quoteNode' ? JERRY_PINK : getCurrentNode().type === 'checklistNode' ? COMPLIANCE_ORANGE : getCurrentNode().type === 'madLibsNode' ? '#10b981' : '#E5090E'}`, background: JERRY_BG }}>
-              <div className="bubble-label" style={{color: JERRY_PINK}}>{getCurrentNode().data.label}</div>
+            <div className="bubble" style={{ 
+              borderLeft: `4px solid ${getCurrentNode().type === 'carrierNode' ? '#8b5cf6' : getCurrentNode().type === 'quoteNode' ? JERRY_PINK : getCurrentNode().type === 'checklistNode' ? COMPLIANCE_ORANGE : getCurrentNode().type === 'madLibsNode' ? '#10b981' : TONES[selectedTone].borderColor}`, 
+              background: TONES[selectedTone].color,
+              boxShadow: `0 2px 8px ${TONES[selectedTone].borderColor}20`
+            }}>
+              <div className="bubble-label" style={{color: TONES[selectedTone].textColor}}>{getCurrentNode().data.label}</div>
               
-              {getCurrentNode().type === 'scriptNode' && <div className="bubble-text" style={{color: SLATE, width: '100%', minWidth: 0, wordWrap: 'break-word', overflowWrap: 'break-word', wordBreak: 'normal', whiteSpace: 'normal'}} dangerouslySetInnerHTML={{__html: cleanHTML(getCurrentNode().data.text)}}></div>}
+              {getCurrentNode().type === 'scriptNode' && (
+                <div className="bubble-text" style={{
+                  color: TONES[selectedTone].textColor, 
+                  width: '100%', 
+                  minWidth: 0, 
+                  wordWrap: 'break-word', 
+                  overflowWrap: 'break-word', 
+                  wordBreak: 'normal', 
+                  whiteSpace: 'normal'
+                }} dangerouslySetInnerHTML={{
+                  __html: cleanHTML(
+                    // Show tone-specific script if available, otherwise show default
+                    getCurrentNode().data.toneScripts?.[selectedTone] || getCurrentNode().data.text
+                  )
+                }}></div>
+              )}
               
               {getCurrentNode().type === 'carrierNode' && (
                 <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
