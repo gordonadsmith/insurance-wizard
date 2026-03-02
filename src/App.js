@@ -2766,6 +2766,39 @@ useEffect(() => {
           )}
           <button className="btn btn-secondary" onClick={resetWizard} style={{color: SLATE}}><RefreshCw size={16} /></button>
         </div>
+
+        <div style={{
+  padding:'10px 20px', 
+  borderBottom: `2px solid ${TONES[selectedTone].borderColor}`, 
+  background: '#f9fafb',
+  flexShrink: 0  // prevents it from shrinking
+}}>
+  <label style={{fontSize:'11px', fontWeight:'bold', color:'#666', display:'block', marginBottom:'6px', textTransform:'uppercase'}}>Customer Tone:</label>
+  <div style={{display:'flex', gap:'6px'}}>
+    {Object.entries(TONES).map(([key, tone]) => (
+      <button
+        key={key}
+        onClick={() => setSelectedTone(key)}
+        style={{
+          flex: 1,
+          padding: '8px 4px',
+          border: selectedTone === key ? `2px solid ${tone.borderColor}` : `1px solid ${BORDER}`,
+          borderRadius: '8px',
+          background: selectedTone === key ? tone.color : 'white',
+          color: selectedTone === key ? tone.textColor : '#666',
+          fontSize: '10px',
+          fontWeight: selectedTone === key ? '700' : '600',
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          textTransform: 'uppercase'
+        }}
+        title={tone.description}
+      >
+        {tone.label}
+      </button>
+    ))}
+  </div>
+</div>
         
         <div 
           className="wizard-content" 
@@ -2833,34 +2866,6 @@ useEffect(() => {
             </div>
           ))}
           
-          {/* Tone Selector */}
-          <div style={{padding:'12px 20px', borderBottom: `2px solid ${TONES[selectedTone].borderColor}`, background: '#f9fafb'}}>
-            <label style={{fontSize:'11px', fontWeight:'bold', color:'#666', display:'block', marginBottom:'6px', textTransform:'uppercase'}}>Customer Tone:</label>
-            <div style={{display:'flex', gap:'6px'}}>
-              {Object.entries(TONES).map(([key, tone]) => (
-                <button
-                  key={key}
-                  onClick={() => setSelectedTone(key)}
-                  style={{
-                    flex: 1,
-                    padding: '8px 4px',
-                    border: selectedTone === key ? `2px solid ${tone.borderColor}` : `1px solid ${BORDER}`,
-                    borderRadius: '8px',
-                    background: selectedTone === key ? tone.color : 'white',
-                    color: selectedTone === key ? tone.textColor : '#666',
-                    fontSize: '10px',
-                    fontWeight: selectedTone === key ? '700' : '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    textTransform: 'uppercase'
-                  }}
-                  title={tone.description}
-                >
-                  {tone.label}
-                </button>
-              ))}
-            </div>
-          </div>
           
           {getCurrentNode() && (
             <div className="bubble" style={{ 
