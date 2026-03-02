@@ -1702,11 +1702,14 @@ export default function App() {
     })));
   }, [setNodes]);
 
-  const refreshFlows = () => {
+  const refreshFlows = (onLoaded) => {
     if (USE_LOCAL_STORAGE) {
+      let finalFlows = ["default_flow.json"];
       const savedFlows = localStorage.getItem('insurance-wizard-flows');
+      
       if (savedFlows) {
-        setAvailableFlows(JSON.parse(savedFlows));
+        finalFlows = JSON.parse(savedFlows);
+        setAvailableFlows(finalFlows);
       } else {
         const hasAnyData = Object.keys(localStorage).some(key => key.startsWith('insurance-wizard-') && key !== 'insurance-wizard-flows' && key !== 'insurance-wizard-last-flow');
         
@@ -1715,41 +1718,46 @@ export default function App() {
             .filter(key => key.startsWith('insurance-wizard-') && key !== 'insurance-wizard-flows' && key !== 'insurance-wizard-last-flow')
             .map(key => key.replace('insurance-wizard-', ''));
           
-          setAvailableFlows(flowKeys.length > 0 ? flowKeys : []);
-          if (flowKeys.length > 0) {
-            localStorage.setItem('insurance-wizard-flows', JSON.stringify(flowKeys));
-          } else {
-            localStorage.setItem('insurance-wizard-flows', JSON.stringify([]));
-          }
+          finalFlows = flowKeys.length > 0 ? flowKeys : ["default_flow.json"];
+          setAvailableFlows(finalFlows);
+          localStorage.setItem('insurance-wizard-flows', JSON.stringify(finalFlows));
         } else {
-          setAvailableFlows(["default_flow.json"]);
-          localStorage.setItem('insurance-wizard-flows', JSON.stringify(["default_flow.json"]));
+          setAvailableFlows(finalFlows);
+          localStorage.setItem('insurance-wizard-flows', JSON.stringify(finalFlows));
         }
       }
+      // Trigger callback with the final list
+      if (onLoaded) onLoaded(finalFlows);
+      
     } else {
       fetch(`${API_URL}/flows`)
         .then(res => res.json())
         .then(files => {
-          if(files.length === 0) setAvailableFlows(["default_flow.json"]);
-          else setAvailableFlows(files);
+          const finalFlows = files.length === 0 ? ["default_flow.json"] : files;
+          setAvailableFlows(finalFlows);
+          if (onLoaded) onLoaded(finalFlows);
         })
-        .catch(() => setAvailableFlows(["default_flow.json"]));
+        .catch(() => {
+          setAvailableFlows(["default_flow.json"]);
+          if (onLoaded) onLoaded(["default_flow.json"]);
+        });
     }
   };
 
-  useEffect(() => {
-    refreshFlows();
-    const timer = setTimeout(() => {
-      loadFlowData(currentFlowName);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (USE_LOCAL_STORAGE && currentFlowName) {
-      localStorage.setItem('insurance-wizard-last-flow', currentFlowName);
-    }
-  }, [currentFlowName]);
+useEffect(() => {
+    refreshFlows((fetchedFlows) => {
+      // Validate the flow we are trying to load
+      let targetFlow = currentFlowName;
+      
+      if (!fetchedFlows.includes(targetFlow) && fetchedFlows.length > 0) {
+        // If the saved flow doesn't exist anymore, fall back to the first available playbook
+        targetFlow = fetchedFlows[0];
+        setCurrentFlowName(targetFlow);
+      }
+      
+      loadFlowData(targetFlow);
+    });
+  }, []); // Only runs once on mount
 
 
 
@@ -2748,50 +2756,17 @@ export default function App() {
             </select>
         </div>
 
-        <button className="btn btn-secondary" onClick={handleAdminUnlock} style={{marginRight:'10px', color: showAdmin ? JERRY_PINK : '#999', borderColor: 'transparent'}}>
-           {showAdmin ? <Unlock size={16}/> : <Lock size={16}/>}
-        </button>
-        {isAuthenticated && showAdmin && (
-          <button className="btn btn-secondary" onClick={handleAdminLock} title="Lock Admin Panel" style={{marginRight:'10px', color: '#ef4444', borderColor: 'transparent'}}>
-            <Lock size={16}/>
+          <button className="btn btn-secondary" onClick={handleAdminUnlock} style={{marginRight:'10px', color: showAdmin ? JERRY_PINK : '#999', borderColor: 'transparent'}}>
+             {showAdmin ? <Unlock size={16}/> : <Lock size={16}/>}
           </button>
-        )}
-        <button className="btn btn-secondary" onClick={resetWizard} style={{color: SLATE}}><RefreshCw size={16} /></button>
-      </div>
-
-      {/* Tone Selector - Fixed below header, always visible */}
-      <div style={{
-        padding:'10px 20px', 
-        borderBottom: `2px solid ${TONES[selectedTone].borderColor}`, 
-        background: '#f9fafb',
-        flexShrink: 0
-      }}>
-        <label style={{fontSize:'11px', fontWeight:'bold', color:'#666', display:'block', marginBottom:'6px', textTransform:'uppercase'}}>Customer Tone:</label>
-        <div style={{display:'flex', gap:'6px'}}>
-          {Object.entries(TONES).map(([key, tone]) => (
-            <button
-              key={key}
-              onClick={() => setSelectedTone(key)}
-              style={{
-                flex: 1,
-                padding: '8px 4px',
-                border: selectedTone === key ? `2px solid ${tone.borderColor}` : `1px solid ${BORDER}`,
-                borderRadius: '8px',
-                background: selectedTone === key ? tone.color : 'white',
-                color: selectedTone === key ? tone.textColor : '#666',
-                fontSize: '10px',
-                fontWeight: selectedTone === key ? '700' : '600',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                textTransform: 'uppercase'
-              }}
-              title={tone.description}
-            >
-              {tone.label}
+          {isAuthenticated && showAdmin && (
+            <button className="btn btn-secondary" onClick={handleAdminLock} title="Lock Admin Panel" style={{marginRight:'10px', color: '#ef4444', borderColor: 'transparent'}}>
+              <Lock size={16}/>
             </button>
-          ))}
+          )}
+          <button className="btn btn-secondary" onClick={resetWizard} style={{color: SLATE}}><RefreshCw size={16} /></button>
         </div>
-      </div>
+        
         <div 
           className="wizard-content" 
           style={{background: 'white', overflowX: 'hidden'}}
@@ -2857,6 +2832,35 @@ export default function App() {
               </div>
             </div>
           ))}
+          
+          {/* Tone Selector */}
+          <div style={{padding:'12px 20px', borderBottom: `2px solid ${TONES[selectedTone].borderColor}`, background: '#f9fafb'}}>
+            <label style={{fontSize:'11px', fontWeight:'bold', color:'#666', display:'block', marginBottom:'6px', textTransform:'uppercase'}}>Customer Tone:</label>
+            <div style={{display:'flex', gap:'6px'}}>
+              {Object.entries(TONES).map(([key, tone]) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedTone(key)}
+                  style={{
+                    flex: 1,
+                    padding: '8px 4px',
+                    border: selectedTone === key ? `2px solid ${tone.borderColor}` : `1px solid ${BORDER}`,
+                    borderRadius: '8px',
+                    background: selectedTone === key ? tone.color : 'white',
+                    color: selectedTone === key ? tone.textColor : '#666',
+                    fontSize: '10px',
+                    fontWeight: selectedTone === key ? '700' : '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    textTransform: 'uppercase'
+                  }}
+                  title={tone.description}
+                >
+                  {tone.label}
+                </button>
+              ))}
+            </div>
+          </div>
           
           {getCurrentNode() && (
             <div className="bubble" style={{ 
