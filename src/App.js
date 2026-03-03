@@ -1408,7 +1408,7 @@ const TONES = {
     description: 'Direct and concise'
   },
   detailed: {
-    label: 'Detail-Oriented',
+    label: 'Standard +',
     color: '#e0e7ff',
     textColor: '#3730a3',
     borderColor: '#6366f1',
@@ -1462,43 +1462,22 @@ export default function App() {
   const scrollTimeoutRef = useRef(null);
 
   useEffect(() => {
-    const currentNode = nodes.find(n => n.id === currentNodeId);
-    if (currentNode && currentNode.type === 'carrierNode') {
-      const defaultType = currentNode.data.defaultCallType || callTypes[0] || "Quote";
-      setSelectedCallType(defaultType);
-    }
-  }, [currentNodeId]);
+  // 1. Guard Clause: If nodes haven't loaded from the server yet, stop here.
+  if (!nodes || nodes.length === 0) return;
 
-  const updateNodeData = useCallback((id, newData) => {
-    setNodes((nds) => nds.map((node) => {
-      if (node.id === id) {
-        return {
-          ...node,
-          data: {
-            ...newData,
-            onChange: updateNodeData,
-            setAsStartNode: setAsStartNode,
-            callTypes
-          }
-        };
-      }
-      return node;
-    }));
-  }, [setNodes, callTypes]);
-
-  useEffect(() => {
-  // Find the node currently being displayed in the wizard/agent view
   const currentNode = nodes.find(n => n.id === currentNodeId);
   
   if (currentNode && currentNode.type === 'carrierNode') {
-    // If the call type isn't set, force it to the node's default or the first available type
-    // This fixes the Render bug where state starts empty and requires a manual click
-    if (!selectedCallType) {
-      const defaultType = currentNode.data.defaultCallType || callTypes[0] || "Quote";
-      setSelectedCallType(defaultType);
+    // 2. Logic: Only set the state if it's currently empty/mismatched
+    // This prevents the "infinite loop" or "locked toggle" feel
+    const targetType = currentNode.data.defaultCallType || callTypes[0] || "Quote";
+    
+    if (selectedCallType !== targetType) {
+      console.log("Auto-initializing call type to:", targetType);
+      setSelectedCallType(targetType);
     }
   }
-}, [currentNodeId, nodes, selectedCallType, callTypes]);
+}, [currentNodeId, nodes, callTypes, selectedCallType]);
   
   // Duplicate node function
   const duplicateNodeFunc = (nodeId) => {
@@ -1715,6 +1694,12 @@ export default function App() {
       data: { ...node.data, isStart: node.id === id }
     })));
   }, [setNodes]);
+
+  const updateNodeData = useCallback((id, newData) => {
+    setNodes((nds) => nds.map((node) => 
+      node.id === id ? { ...node, data: { ...newData, onChange: updateNodeData, setAsStartNode, duplicateNode: duplicateNodeFunc } } : node
+    ));
+  }, [setNodes, setAsStartNode]);
 
   const refreshFlows = (onLoaded) => {
     if (USE_LOCAL_STORAGE) {
