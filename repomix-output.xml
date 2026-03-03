@@ -67,7 +67,6 @@ server/
     manifest.json
     robots.txt
   flows/
-    default_flow.json
     Sales.json
   app.py
   flow_data.json
@@ -549,93 +548,6 @@ import '@testing-library/jest-dom';
   "categories": ["productivity", "business"],
   "lang": "en-US",
   "dir": "ltr"
-}
-</file>
-
-<file path="server/flows/default_flow.json">
-{
-  "filename": "default_flow.json",
-  "nodes": [
-    {
-      "id": "1",
-      "type": "scriptNode",
-      "position": {
-        "x": 250,
-        "y": 150
-      },
-      "data": {
-        "label": "Start",
-        "text": "<p>Testing&nbsp;to&nbsp;see&nbsp;if&nbsp;the&nbsp;anticivil&nbsp;liberties&nbsp;of&nbsp;the\u00a0</p>",
-        "isStart": true
-      },
-      "width": 274,
-      "height": 139
-    }
-  ],
-  "edges": [],
-  "carriers": {},
-  "quoteSettings": {
-    "coverages": [
-      {
-        "id": "bi_pd",
-        "label": "Bodily Injury Liability",
-        "hasInput": true,
-        "placeholder": "e.g. 100/300",
-        "isPolicyLevel": true,
-        "format": "<b>{label}</b> at {value}"
-      },
-      {
-        "id": "uim",
-        "label": "Uninsured Motorist",
-        "hasInput": true,
-        "placeholder": "e.g. 30/60",
-        "isPolicyLevel": true,
-        "format": "<b>{label}</b> at {value}"
-      },
-      {
-        "id": "pip",
-        "label": "PIP",
-        "hasInput": false,
-        "isPolicyLevel": true,
-        "format": "standard <b>{label}</b>"
-      },
-      {
-        "id": "towing",
-        "label": "Roadside",
-        "hasInput": false,
-        "isPolicyLevel": true,
-        "format": "<b>{label}</b>"
-      },
-      {
-        "id": "comp",
-        "label": "Comprehensive",
-        "hasInput": true,
-        "placeholder": "e.g. $500 Ded",
-        "isPolicyLevel": false,
-        "format": "<b>{label}</b> with a {value}"
-      },
-      {
-        "id": "coll",
-        "label": "Collision",
-        "hasInput": true,
-        "placeholder": "e.g. $500 Ded",
-        "isPolicyLevel": false,
-        "format": "<b>{label}</b> with a {value}"
-      },
-      {
-        "id": "rental",
-        "label": "Rental",
-        "hasInput": true,
-        "placeholder": "e.g. $1200",
-        "isPolicyLevel": false,
-        "format": "{value} for <b>{label}</b>"
-      }
-    ],
-    "coverageFormat": "<b>{label}</b> with {value}",
-    "vehicleTemplate": "for {name}, we have {coverages}",
-    "template": "<p>Excellent news, I found a great rate with <strong>{carrier}</strong>.</p><p>{policy}</p><p>Then {vehicles}.</p><p>I will get this started today for <strong>{down} down</strong> and <strong>{monthly} a month</strong>.</p><p>{closing}</p>"
-  },
-  "resources": []
 }
 </file>
 
@@ -2868,29 +2780,22 @@ export default function App() {
   const scrollTimeoutRef = useRef(null);
 
   useEffect(() => {
-    const currentNode = nodes.find(n => n.id === currentNodeId);
-    if (currentNode && currentNode.type === 'carrierNode') {
-      const defaultType = currentNode.data.defaultCallType || callTypes[0] || "Quote";
-      setSelectedCallType(defaultType);
-    }
-  }, [currentNodeId]);
+  // 1. Guard Clause: If nodes haven't loaded from the server yet, stop here.
+  if (!nodes || nodes.length === 0) return;
 
-  const updateNodeData = useCallback((id, newData) => {
-    setNodes((nds) => nds.map((node) => {
-      if (node.id === id) {
-        return {
-          ...node,
-          data: {
-            ...newData,
-            onChange: updateNodeData,
-            setAsStartNode: setAsStartNode,
-            callTypes
-          }
-        };
-      }
-      return node;
-    }));
-  }, [setNodes, callTypes]);
+  const currentNode = nodes.find(n => n.id === currentNodeId);
+  
+  if (currentNode && currentNode.type === 'carrierNode') {
+    // 2. Logic: Only set the state if it's currently empty/mismatched
+    // This prevents the "infinite loop" or "locked toggle" feel
+    const targetType = currentNode.data.defaultCallType || callTypes[0] || "Quote";
+    
+    if (selectedCallType !== targetType) {
+      console.log("Auto-initializing call type to:", targetType);
+      setSelectedCallType(targetType);
+    }
+  }
+}, [currentNodeId, nodes, callTypes, selectedCallType]);
   
   // Duplicate node function
   const duplicateNodeFunc = (nodeId) => {
@@ -4143,42 +4048,37 @@ useEffect(() => {
 
       <ResourceSidebar resources={resources} setResources={setResources} issues={issues} setIssues={setIssues} />
 
-    <div className="wizard-pane" style={{
-        flex: showAdmin ? '0 0 400px' : '1', 
-        maxWidth: '100%', 
-        minWidth: '350px',
-        borderRight: showAdmin ? `1px solid ${BORDER}` : 'none', 
-        display:'flex', flexDirection:'column', background: 'white'
-      }}>
-      <div className="wizard-header" style={{borderBottom:`1px solid ${BORDER}`, padding:'15px 20px', display:'flex', alignItems:'center'}}>
-        <img src={jerryLogo} alt="Jerry" style={{height:'30px', marginRight:'10px'}} />
-        <div style={{ fontWeight: '700', fontSize: '18px', color: SLATE }}>Insurance Wizard</div>
-        <div style={{ flexGrow: 1 }}></div>
-        
-<<<<<<< HEAD
-        <div style={{display:'flex', alignItems:'center', gap:'4px', marginRight:'12px'}}>
-            <FolderOpen size={16} color={SLATE} />
-            <select value={currentFlowName} onChange={handleSwitchFlow} style={{fontSize:'12px', padding:'4px', borderRadius:'4px', maxWidth:'120px', border:`1px solid ${BORDER}`}}>
-                {availableFlows.map(f => <option key={f} value={f}>{f.replace('.json','')}</option>)}
-            </select>
-        </div>
+      <div className="wizard-pane" style={{
+          flex: showAdmin ? '0 0 400px' : '1', 
+          maxWidth: '100%', 
+          minWidth: '350px',
+          borderRight: showAdmin ? `1px solid ${BORDER}` : 'none', 
+          display:'flex', flexDirection:'column', background: 'white'
+        }}>
+        <div className="wizard-header" style={{borderBottom:`1px solid ${BORDER}`, padding:'15px 20px', display:'flex', alignItems:'center'}}>
+          <img src={jerryLogo} alt="Jerry" style={{height:'30px', marginRight:'10px'}} />
+          <div style={{ fontWeight: '700', fontSize: '18px', color: SLATE }}>Insurance Wizard</div>
+          <div style={{ flexGrow: 1 }}></div>
+          
+          <div style={{display:'flex', alignItems:'center', gap:'4px', marginRight:'12px'}}>
+              <FolderOpen size={16} color={SLATE} />
+              <select value={currentFlowName} onChange={handleSwitchFlow} style={{fontSize:'12px', padding:'4px', borderRadius:'4px', maxWidth:'120px', border:`1px solid ${BORDER}`}}>
+                  {availableFlows.map(f => <option key={f} value={f}>{f.replace('.json','')}</option>)}
+              </select>
+          </div>
 
-        <button className="btn btn-secondary" onClick={handleAdminUnlock} style={{marginRight:'10px', color: showAdmin ? JERRY_PINK : '#999', borderColor: 'transparent'}}>
-           {showAdmin ? <Unlock size={16}/> : <Lock size={16}/>}
-        </button>
-        {isAuthenticated && showAdmin && (
-          <button className="btn btn-secondary" onClick={handleAdminLock} title="Lock Admin Panel" style={{marginRight:'10px', color: '#ef4444', borderColor: 'transparent'}}>
-            <Lock size={16}/>
+          <button className="btn btn-secondary" onClick={handleAdminUnlock} style={{marginRight:'10px', color: showAdmin ? JERRY_PINK : '#999', borderColor: 'transparent'}}>
+             {showAdmin ? <Unlock size={16}/> : <Lock size={16}/>}
           </button>
-        )}
-        <button className="btn btn-secondary" onClick={resetWizard} style={{color: SLATE}}><RefreshCw size={16} /></button>
-      </div>
-
-      {/* Tone Selector - Fixed below header, always visible */}
-      <div style={{
-=======
+          {isAuthenticated && showAdmin && (
+            <button className="btn btn-secondary" onClick={handleAdminLock} title="Lock Admin Panel" style={{marginRight:'10px', color: '#ef4444', borderColor: 'transparent'}}>
+              <Lock size={16}/>
+            </button>
+          )}
+          <button className="btn btn-secondary" onClick={resetWizard} style={{color: SLATE}}><RefreshCw size={16} /></button>
+        </div>
+        
         <div style={{
->>>>>>> development
         padding:'10px 20px', 
         borderBottom: `2px solid ${TONES[selectedTone].borderColor}`, 
         background: '#f9fafb',
@@ -4210,10 +4110,7 @@ useEffect(() => {
           ))}
         </div>
       </div>
-<<<<<<< HEAD
-=======
 
->>>>>>> development
         <div 
           className="wizard-content" 
           style={{background: 'white', overflowX: 'hidden'}}
@@ -4279,10 +4176,7 @@ useEffect(() => {
               </div>
             </div>
           ))}
-<<<<<<< HEAD
-=======
         
->>>>>>> development
           
           {getCurrentNode() && (
             <div className="bubble" style={{ 
